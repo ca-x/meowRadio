@@ -1,6 +1,10 @@
+import { tr } from "./i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import type Hls from "hls.js";
 import LedScene from "./LedScene";
+import SleepTimer from "./SleepTimer";
+import SoftReceiver from "./SoftReceiver";
 import {
   Play,
   Pause,
@@ -14,9 +18,9 @@ import {
 } from "lucide-react";
 import type { Station } from "./api";
 import { api, playableUrl } from "./api";
-
 type Props = {
-  theme: "walnut" | "vitreous" | "led";
+  active?: boolean;
+  theme: "walnut" | "vitreous" | "led" | "soft";
   station: Station | null;
   stations: Station[];
   onSelect: (station: Station) => void;
@@ -26,6 +30,7 @@ type Props = {
   selection: number;
 };
 export default function Player({
+  active = true,
   theme,
   station,
   stations,
@@ -35,11 +40,18 @@ export default function Player({
   onSave,
   selection,
 }: Props) {
+  useTranslation();
   const audio = useRef<HTMLAudioElement>(null);
   const [status, setStatus] = useState<
     "idle" | "loading" | "playing" | "paused" | "error"
   >("idle");
   const [error, setError] = useState("");
+  const [timerNotice, setTimerNotice] = useState(false);
+  useEffect(() => {
+    if (!timerNotice) return;
+    const timeout = setTimeout(() => setTimerNotice(false), 5000);
+    return () => clearTimeout(timeout);
+  }, [timerNotice]);
   const [volume, setVolume] = useState(() => {
     try {
       const v = Number(localStorage.getItem("meow-volume") ?? 0.7);
@@ -203,9 +215,24 @@ export default function Player({
   };
   return (
     <section
-      className={`receiver ${theme === "vitreous" ? "receiver-vitreous" : theme === "led" ? "receiver-vitreous receiver-led" : ""}`}
-      aria-label="收音机播放器"
+      className={`receiver ${theme === "vitreous" ? "receiver-vitreous" : theme === "led" ? "receiver-vitreous receiver-led" : theme === "soft" ? "receiver-soft" : ""}`}
+      aria-label={tr("收音机播放器")}
     >
+      {theme === "soft" && (
+        <SoftReceiver
+          station={station}
+          stations={stations}
+          playing={status === "playing"}
+          loading={status === "loading"}
+          volume={volume}
+          saved={saved}
+          onVolume={setVolume}
+          onSelect={onSelect}
+          onToggle={toggle}
+          onNext={next}
+          onSave={onSave}
+        />
+      )}
       <div className="night-receiver">
         {theme === "led" && (
           <LedScene playing={status === "playing"} saved={saved} />
@@ -233,15 +260,20 @@ export default function Player({
           className={`night-wave ${status === "playing" ? "playing" : ""}`}
           aria-hidden="true"
         >
-          {Array.from({ length: 32 }, (_, i) => (
-            <i
-              key={i}
-              style={{
-                height: `${24 + Math.sin(i * 0.7) ** 2 * 100}px`,
-                animationDelay: `${(i % 7) * -0.19}s`,
-              }}
-            />
-          ))}
+          {Array.from(
+            {
+              length: 32,
+            },
+            (_, i) => (
+              <i
+                key={i}
+                style={{
+                  height: `${24 + Math.sin(i * 0.7) ** 2 * 100}px`,
+                  animationDelay: `${(i % 7) * -0.19}s`,
+                }}
+              />
+            ),
+          )}
         </div>
         <div className="night-card">
           <div className="night-metadata">
@@ -253,11 +285,11 @@ export default function Player({
                   ? "TUNING IN"
                   : "YOUR NEXT FREQUENCY"}
             </p>
-            <h2>{station?.name || "世界正在发声"}</h2>
+            <h2>{station?.name || tr("世界正在发声")}</h2>
             <span>
               {station
-                ? `${station.country || "世界电台"} · ${station.tags.split(",")[0] || "Radio"}`
-                : "在夜色里，遇见一个好声音。"}
+                ? `${station.country || tr("世界电台")} · ${station.tags.split(",")[0] || "Radio"}`
+                : tr("在夜色里，遇见一个好声音。")}
             </span>
           </div>
           <div className="night-controls">
@@ -265,7 +297,7 @@ export default function Player({
               className="night-small"
               onClick={() => next(-1)}
               disabled={!stations.length}
-              aria-label="上一个频道"
+              aria-label={tr("上一个频道")}
             >
               <SkipBack size={22} />
             </button>
@@ -275,8 +307,8 @@ export default function Player({
               disabled={!station && !stations.length}
               aria-label={
                 status === "playing" || status === "loading"
-                  ? "暂停收听"
-                  : "开始收听"
+                  ? tr("暂停收听")
+                  : tr("开始收听")
               }
             >
               {status === "playing" || status === "loading" ? (
@@ -289,7 +321,7 @@ export default function Player({
               className="night-small"
               onClick={() => next(1)}
               disabled={!stations.length}
-              aria-label="下一个频道"
+              aria-label={tr("下一个频道")}
             >
               <SkipForward size={22} />
             </button>
@@ -298,7 +330,7 @@ export default function Player({
             <Volume2 size={16} />
             <input
               type="range"
-              aria-label="音量"
+              aria-label={tr("音量")}
               min="0"
               max="1"
               step="0.01"
@@ -310,7 +342,7 @@ export default function Player({
               className="icon-button"
               disabled={!station}
               onClick={onSave}
-              aria-label={saved ? "取消收藏当前电台" : "收藏当前电台"}
+              aria-label={saved ? tr("取消收藏当前电台") : tr("收藏当前电台")}
               aria-pressed={saved}
             >
               <Heart size={19} fill={saved ? "currentColor" : "none"} />
@@ -318,17 +350,23 @@ export default function Player({
           </div>
         </div>
         <div className="night-ticks" aria-hidden="true">
-          {Array.from({ length: 25 }, (_, i) => (
-            <span
-              className={`${i % 4 === 0 ? "major" : ""} ${i === Math.max(0, index) ? "active" : ""}`}
-              key={i}
-            >
-              {i % 4 === 0 && <b>{String(i + 1).padStart(2, "0")}</b>}
-            </span>
-          ))}
+          {Array.from(
+            {
+              length: 25,
+            },
+            (_, i) => (
+              <span
+                className={`${i % 4 === 0 ? "major" : ""} ${i === Math.max(0, index) ? "active" : ""}`}
+                key={i}
+              >
+                {i % 4 === 0 && <b>{String(i + 1).padStart(2, "0")}</b>}
+              </span>
+            ),
+          )}
         </div>
         <p className="night-caption">
-          STATION SELECTOR · {status === "playing" ? "正在收听" : "等待信号"} ·{" "}
+          STATION SELECTOR ·{" "}
+          {status === "playing" ? tr("正在收听") : tr("等待信号")} ·{" "}
           {String(Math.floor(elapsed / 60)).padStart(2, "0")}:
           {String(elapsed % 60).padStart(2, "0")}
         </p>
@@ -338,7 +376,7 @@ export default function Player({
       <div className="receiver-face">
         <div className="receiver-top">
           <span className="engraved">MEOW AUDIO</span>
-          <span className="model">网络收音机 / MR–01</span>
+          <span className="model">{tr("网络收音机 / MR–01")}</span>
         </div>
         <div className="receiver-core">
           <div className="speaker" aria-hidden="true">
@@ -359,21 +397,23 @@ export default function Player({
                 </span>
                 <span>INTERNET RADIO</span>
               </div>
-              <h2 title={station?.name}>{station?.name || "世界正在发声"}</h2>
+              <h2 title={station?.name}>
+                {station?.name || tr("世界正在发声")}
+              </h2>
               <p>
                 {station
-                  ? `${station.country || "世界电台"} · ${station.codec || "AUDIO"}${station.bitrate ? ` / ${station.bitrate} KBPS` : ""}`
-                  : "挑一个频道，把时间调慢一点。"}
+                  ? `${station.country || tr("世界电台")} · ${station.codec || "AUDIO"}${station.bitrate ? ` / ${station.bitrate} KBPS` : ""}`
+                  : tr("挑一个频道，把时间调慢一点。")}
               </p>
               <div className="lcd-bottom">
                 <span>
                   {status === "playing"
-                    ? "正在收听"
+                    ? tr("正在收听")
                     : status === "loading"
-                      ? "正在连接信号…"
+                      ? tr("正在连接信号…")
                       : status === "error"
-                        ? "信号中断"
-                        : "等待你的下一次调频"}
+                        ? tr("信号中断")
+                        : tr("等待你的下一次调频")}
                 </span>
                 <span>
                   {String(Math.floor(elapsed / 60)).padStart(2, "0")}:
@@ -407,8 +447,8 @@ export default function Player({
               onClick={toggle}
               aria-label={
                 status === "playing" || status === "loading"
-                  ? "暂停收听"
-                  : "开始收听"
+                  ? tr("暂停收听")
+                  : tr("开始收听")
               }
               disabled={!station && !stations.length}
             >
@@ -424,7 +464,7 @@ export default function Player({
             <div className="transport-keys">
               <button
                 onClick={() => next(-1)}
-                aria-label="上一个频道"
+                aria-label={tr("上一个频道")}
                 disabled={!stations.length}
               >
                 <SkipBack size={19} />
@@ -433,32 +473,34 @@ export default function Player({
                 className={saved ? "is-saved" : ""}
                 onClick={onSave}
                 disabled={!station}
-                aria-label={saved ? "取消收藏当前电台" : "收藏当前电台"}
+                aria-label={saved ? tr("取消收藏当前电台") : tr("收藏当前电台")}
                 aria-pressed={saved}
               >
                 <Heart size={19} fill={saved ? "currentColor" : "none"} />
               </button>
               <button
                 onClick={() => next(1)}
-                aria-label="下一个频道"
+                aria-label={tr("下一个频道")}
                 disabled={!stations.length}
               >
                 <SkipForward size={19} />
               </button>
             </div>
-            <span>你的节奏，你的频道</span>
+            <span>{tr("你的节奏，你的频道")}</span>
           </div>
           <div className="volume-group">
             <div
               className="volume-dial"
-              style={{ transform: `rotate(${-130 + volume * 260}deg)` }}
+              style={{
+                transform: `rotate(${-130 + volume * 260}deg)`,
+              }}
               aria-hidden="true"
             >
               <i />
             </div>
             <label htmlFor="volume">
-              <Volume2 size={14} /> 音量{" "}
-              <span>{Math.round(volume * 100)}%</span>
+              <Volume2 size={14} />
+              {tr("音量")} <span>{Math.round(volume * 100)}%</span>
             </label>
             <input
               id="volume"
@@ -475,16 +517,30 @@ export default function Player({
           <span>
             <Radio size={12} /> HIGH FIDELITY · LOW DISTRACTION
           </span>
-          <span>拾起声音，放下匆忙。</span>
+          <span>{tr("拾起声音，放下匆忙。")}</span>
         </div>
       </div>
       <span className="screw screw-bl" aria-hidden="true" />
       <span className="screw screw-br" aria-hidden="true" />
       {error && (
         <div className="playback-error" role="alert">
-          {error}
+          {tr(error)}
         </div>
       )}
+      <div className="player-utilities">
+        <SleepTimer
+          active={active}
+          onExpire={() => {
+            wantsPlayback.current = false;
+            audio.current?.pause();
+            setStatus("paused");
+            setTimerNotice(true);
+          }}
+        />
+        {timerNotice && (
+          <span aria-hidden="true">{tr("定时已到，已停止播放")}</span>
+        )}
+      </div>
       <audio
         ref={audio}
         preload="none"
@@ -495,6 +551,7 @@ export default function Player({
           }
           setStatus("playing");
           setError("");
+          setTimerNotice(false);
         }}
         onPause={() => setStatus((v) => (v === "error" ? v : "paused"))}
         onWaiting={() => {

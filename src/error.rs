@@ -4,6 +4,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
+#[derive(Clone)]
 pub struct AppError(pub StatusCode, pub &'static str);
 pub type Result<T> = std::result::Result<T, AppError>;
 impl AppError {

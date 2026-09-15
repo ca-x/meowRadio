@@ -1,0 +1,488 @@
+.sleep-timer-entry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.sleep-timer-entry[data-running="true"] {
+  color: var(--accent);
+  border-color: var(--control-line, var(--line));
+  background: var(--surface, var(--paper));
+}
+.sleep-timer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #080b1066;
+  backdrop-filter: blur(5px);
+}
+.sleep-timer-dialog,
+.sleep-timer-final {
+  --timer-rim: #78563e;
+  --timer-face: #efe7d6;
+  --timer-ink: #40382c;
+  --timer-hand: #8d3b26;
+  --timer-rim-shadow: inset 0 1px 2px #ffffff70, 0 6px 16px #30231330;
+}
+.sleep-timer-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 101;
+  width: min(390px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid var(--control-line, var(--line));
+  border-radius: 18px;
+  color: var(--ink);
+  background: var(--surface, var(--paper));
+  box-shadow: 0 22px 70px #0005;
+}
+.sleep-timer-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sleep-timer-heading h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+.sleep-timer-close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: -8px -8px -8px 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+}
+.sleep-timer-description,
+.sleep-timer-hint {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.sleep-timer-description {
+  margin: 9px 0 20px;
+}
+.sleep-timer-active {
+  color: var(--accent);
+  font-size: 12px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.sleep-timer-clock {
+  position: relative;
+  width: min(260px, 100%);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  border: 10px solid var(--timer-rim);
+  border-radius: 50%;
+  background: var(--timer-face);
+  box-shadow: var(--timer-rim-shadow);
+  isolation: isolate;
+}
+.sleep-timer-dial {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 2px 7px #0003;
+  pointer-events: none;
+  color: var(--timer-ink);
+}
+.sleep-timer-dial i {
+  position: absolute;
+  left: calc(50% - 0.5px);
+  top: 0;
+  width: 1px;
+  height: 50%;
+  transform-origin: center bottom;
+}
+.sleep-timer-dial i::before {
+  content: "";
+  display: block;
+  margin-top: 7px;
+  width: 1px;
+  height: 4px;
+  background: var(--timer-ink);
+  opacity: 0.45;
+}
+.sleep-timer-dial i.major::before {
+  height: 8px;
+  width: 2px;
+  opacity: 0.85;
+}
+.sleep-timer-dial > span {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.sleep-timer-hand {
+  position: absolute;
+  bottom: 50%;
+  left: 50%;
+  width: 44px;
+  height: 46%;
+  padding: 0;
+  border: 0;
+  border-radius: 22px 22px 0 0;
+  background: transparent;
+  transform-origin: center bottom;
+  touch-action: none;
+  cursor: grab;
+  transition: none;
+}
+.sleep-timer-hand:active {
+  cursor: grabbing;
+}
+.sleep-timer-hand > span {
+  position: absolute;
+  top: 17px;
+  bottom: -12px;
+  left: calc(50% - 2px);
+  width: 4px;
+  border-radius: 5px;
+  background: var(--timer-hand);
+  box-shadow: 2px 2px 3px #0003;
+  pointer-events: none;
+}
+.sleep-timer-hand > span::before {
+  content: "";
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  left: -2.5px;
+  top: -3px;
+  border: 2px solid var(--timer-hand);
+  border-radius: 50%;
+  background: var(--timer-face);
+}
+.sleep-timer-hour {
+  height: 34%;
+}
+.sleep-timer-hour > span {
+  width: 7px;
+  left: calc(50% - 3.5px);
+  background: var(--timer-ink);
+}
+.sleep-timer-hour > span::before {
+  border-color: var(--timer-ink);
+  left: -1px;
+}
+.sleep-timer-hand:focus-visible {
+  outline: 2px solid var(--timer-hand);
+  outline-offset: 0;
+}
+.sleep-timer-pin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 15px;
+  height: 15px;
+  border: 4px solid var(--timer-ink);
+  border-radius: 50%;
+  background: var(--timer-face);
+  pointer-events: none;
+}
+.sleep-timer-hint {
+  text-align: center;
+  margin: 16px 0 12px;
+}
+.sleep-timer-fields {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+.sleep-timer-fields label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.sleep-timer-fields input {
+  width: 64px;
+  height: 44px;
+  border: 1px solid var(--control-line, var(--line));
+  border-radius: 8px;
+  padding: 4px 6px;
+  background: var(--field, var(--paper));
+  color: var(--ink);
+  font-size: 23px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.sleep-timer-presets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+  margin: 18px 0;
+}
+.sleep-timer-presets button,
+.sleep-timer-actions button {
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid var(--control-line, var(--line));
+  border-radius: 8px;
+  background: var(--field, var(--paper));
+  color: var(--ink);
+  font-size: 12px;
+}
+.sleep-timer-presets button[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.sleep-timer-actions {
+  display: flex;
+  gap: 10px;
+}
+.sleep-timer-actions button {
+  flex: 1;
+  font-weight: 600;
+}
+.sleep-timer-actions .sleep-timer-start {
+  background: var(--accent);
+  color: var(--accent-ink, #fff);
+  border-color: var(--accent);
+}
+.sleep-timer-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+[data-theme="walnut"][data-color="dark"]
+  :is(.sleep-timer-dialog, .sleep-timer-final) {
+  --timer-rim: #533c2e;
+  --timer-face: #2a2a23;
+  --timer-ink: #ddd2b7;
+  --timer-hand: #eca07c;
+  --timer-rim-shadow: inset 0 1px 2px #b7855860, 0 6px 16px #0005;
+}
+[data-theme="vitreous"] :is(.sleep-timer-dialog, .sleep-timer-final) {
+  --timer-rim: #2d3443;
+  --timer-face: #141d2a;
+  --timer-ink: #dce4ed;
+  --timer-hand: #55e2e9;
+  --timer-rim-shadow: inset 0 1px 2px #e4f4ff70, 0 8px 24px #0005;
+  border-radius: 22px;
+}
+[data-theme="vitreous"][data-color="light"]
+  :is(.sleep-timer-dialog, .sleep-timer-final) {
+  --timer-rim: #c9d8e2;
+  --timer-face: #f0f7fc;
+  --timer-ink: #233e52;
+  --timer-hand: #087382;
+  --timer-rim-shadow: inset 0 1px 2px #fff, 0 8px 24px #26486125;
+}
+[data-theme="led"] :is(.sleep-timer-dialog, .sleep-timer-final) {
+  --timer-rim: #303a34;
+  --timer-face: #151d19;
+  --timer-ink: #bad2c1;
+  --timer-hand: #a0efdb;
+  --timer-rim-shadow: inset 0 1px #a9c4ae50, 0 5px 14px #0005;
+  border-radius: 12px;
+}
+[data-theme="led"] .sleep-timer-dial > span,
+[data-theme="led"] .sleep-timer-fields input {
+  font-family: "Space Mono", monospace;
+}
+[data-theme="led"] .sleep-timer-dial i::before {
+  border-radius: 50%;
+  height: 2px;
+  width: 2px;
+}
+[data-theme="led"] .sleep-timer-dial i.major::before {
+  height: 4px;
+  width: 4px;
+}
+[data-theme="led"][data-color="light"]
+  :is(.sleep-timer-dialog, .sleep-timer-final) {
+  --timer-rim: #afbeb2;
+  --timer-face: #e1e9dc;
+  --timer-ink: #2a483a;
+  --timer-hand: #226650;
+  --timer-rim-shadow: inset 0 1px #fff9, 0 5px 14px #253b2825;
+}
+[data-theme="soft"] :is(.sleep-timer-dialog, .sleep-timer-final) {
+  --timer-rim: #e2eaf2;
+  --timer-face: #e8eff5;
+  --timer-ink: #42566a;
+  --timer-hand: #397154;
+  --timer-rim-shadow: 7px 7px 15px #a9bdcf80, -6px -6px 14px #ffffffc0;
+  border-radius: 26px;
+}
+[data-theme="soft"] .sleep-timer-dial {
+  box-shadow:
+    inset 3px 3px 7px #829bad40,
+    inset -3px -3px 7px #fff5;
+}
+[data-theme="soft"][data-color="dark"]
+  :is(.sleep-timer-dialog, .sleep-timer-final) {
+  --timer-rim: #303f4b;
+  --timer-face: #2b3945;
+  --timer-ink: #d2dfeb;
+  --timer-hand: #9dd3b0;
+  --timer-rim-shadow: 7px 7px 15px #10192380, -5px -5px 14px #52667640;
+}
+@media (hover: hover) {
+  .sleep-timer-entry:hover,
+  .sleep-timer-close:hover {
+    background: var(--field, var(--paper));
+    color: var(--ink);
+  }
+}
+@media (max-width: 380px) {
+  .sleep-timer-dialog {
+    padding: 18px;
+  }
+  .sleep-timer-clock {
+    width: 224px;
+  }
+  .sleep-timer-presets {
+    gap: 4px;
+  }
+  .sleep-timer-presets button {
+    padding-inline: 3px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sleep-timer-dialog button,
+  .sleep-timer-entry {
+    transition: none;
+  }
+  .sleep-timer-dialog button:active,
+  .sleep-timer-entry:active {
+    transform: none;
+  }
+}
+
+.sleep-timer-control {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.sleep-timer-control[hidden] {
+  display: none;
+}
+.sleep-timer-reminder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 0 18px;
+}
+.sleep-timer-reminder label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.sleep-timer-reminder select {
+  min-height: 44px;
+  max-width: 58%;
+  padding: 8px 10px;
+  border: 1px solid var(--control-line, var(--line));
+  border-radius: 8px;
+  background: var(--field, var(--paper));
+  color: var(--ink);
+  font-size: 12px;
+}
+.sleep-timer-final {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 14px;
+  border: 2px solid var(--timer-rim);
+  border-radius: 10px;
+  background: var(--timer-face);
+  color: var(--timer-ink);
+  box-shadow: var(--timer-rim-shadow);
+  opacity: 1;
+  transform: none;
+}
+.sleep-timer-final-label {
+  font-size: 11px;
+  line-height: 1.3;
+}
+.sleep-timer-final strong {
+  color: var(--timer-hand);
+  font-size: 25px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.sleep-timer-final-halo {
+  position: absolute;
+  inset: -4px;
+  z-index: -1;
+  border: 1px solid var(--timer-hand);
+  border-radius: inherit;
+  opacity: 0.3;
+  pointer-events: none;
+}
+/* This infrequent deadline event starts when its state changes, even after mount. */
+.sleep-timer-final[data-animate="true"] {
+  animation: sleep-timer-enter 180ms var(--ease-out) both;
+}
+@keyframes sleep-timer-enter {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.sleep-timer-final[data-animate="true"] .sleep-timer-final-halo {
+  animation: sleep-timer-breathe 2.4s
+    var(--ease-in-out, cubic-bezier(0.77, 0, 0.175, 1)) infinite;
+}
+@keyframes sleep-timer-breathe {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.99);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(1.015);
+  }
+}
+[data-theme="led"] .sleep-timer-final strong {
+  font-family: "Space Mono", monospace;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sleep-timer-final[data-animate="true"],
+  .sleep-timer-final[data-animate="true"] .sleep-timer-final-halo {
+    animation: none;
+  }
+}

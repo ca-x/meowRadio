@@ -1,9 +1,19 @@
 # Delivery checklist
 - [x] Rust, SQLite migrations, auth and one-time setup (environment + wizard).
 - [x] Radio Browser catalog, user favorites, proxy configuration and bounded relay.
-- [x] React receiver, discovery, settings and three persistent themes.
+- [x] React receiver, discovery, settings and four persistent themes.
 - [x] LED 2D/3D controls; maintain playback across theme switches.
 - [x] Backend/frontend tests, independent code review, browser verification.
 - [x] Embedded release build, Docker/CI/release workflows and usage documentation.
 - [x] Create public GitHub repository ca-x/meowRadio.
-- [ ] Push source and verify GitHub Actions.
+- [x] Push source and verify GitHub Actions.
+- [x] Publish v0.1.0 binaries and public multi-architecture GHCR image.
+- [x] Improve search composition, submission, FM query normalization and empty-state recovery.
+- [x] Integrate original logo uploaded in issue #1.
+- [x] Add 阿喵收音机 branding and independent /login page.
+- [x] Add restrained filter entry with full directory browsing and draft apply/cancel.
+- [x] Add proxy connectivity test and per-station proxy entry.
+- [x] Add persistent Chinese/English and independent light/dark palettes.
+- [x] Add clock sleep timer and configurable final-countdown emphasis.
+- [x] Update README with exactly three PC and three mobile screenshots.
+- [ ] Publish/verify v0.1.1.

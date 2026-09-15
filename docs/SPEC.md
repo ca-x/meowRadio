@@ -38,3 +38,9 @@ Boundaries: implement dependencies/schema/CI authorized here; never commit crede
 Initialization: first admin from MEOW_INIT_USERNAME + MEOW_INIT_PASSWORD or one-time web wizard; atomic installation claim, existing accounts never reset. Theme addition: user-provided cyan/violet glass design as “琉璃夜色”, alongside walnut, stored locally, switching preserves audio.
 
 Dependency exception: a documented local radiobrowser 0.6.1 patch updates reqwest/Hickory to eliminate known vulnerabilities while preserving the upstream API.
+
+Fourth theme: user-provided Dribbble shot 11629433, “云白拟态”: cloud-white/blue hardware, inset green circular tuner, real station-index slider, volume and speaker texture. Credit Oleksandr Plyuto / heartbeat; no copied brand/logo or imaginary MHz/EQ controls. Keep existing three themes and audio lifecycle.
+
+Latest user constraints: Chinese product name 阿喵收音机. Login/registration must use standalone /login, never an authentication modal. Home must remain restrained: a single filter trigger with active count, country/language/tag/sort inside a Radix dialog (bottom sheet on mobile), draft edits apply explicitly; advanced audio options collapsed. Directory browsing works with an empty keyword. Add authenticated fixed-target proxy connectivity test with latency and a per-station proxy-play icon; ordinary station clicks play directly.
+
+Final requested capabilities: simplified Chinese/English UI with persistent preference, independently selectable light/dark modes for each of the four skins, and a theme-matched clock sleep timer with draggable hour/minute hands plus keyboard/numeric alternatives. Countdown uses a wall-clock deadline and survives station/style/login transitions; configurable emphasis lead times off/10s/30s/60s/300s with restrained animation and reduced-motion support. Update all README screenshots and publish a new version tag after checks.

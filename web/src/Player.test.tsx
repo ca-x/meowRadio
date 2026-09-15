@@ -74,12 +74,13 @@ describe("playback lifecycle", () => {
     render(<Player {...props} station={null} />);
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
   });
-  it("preserves audio instance and playback when switching all three themes", () => {
+  it("preserves audio instance and playback when switching all four themes", () => {
     const { rerender } = render(<Player {...props} />);
     const audio = document.querySelector("audio");
     expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1);
     rerender(<Player {...props} theme="vitreous" />);
     rerender(<Player {...props} theme="led" />);
+    rerender(<Player {...props} theme="soft" />);
     expect(document.querySelector("audio")).toBe(audio);
     expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1);
   });
@@ -129,4 +130,27 @@ describe("playback lifecycle", () => {
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
     expect(screen.getByRole("alert").textContent).toContain("地址无效");
   });
+});
+
+it("updates an existing playback error when the interface language changes", async () => {
+  const { default: i18n } = await import("./i18n");
+  render(
+    <Player {...props} station={{ ...station, url: "javascript:invalid" }} />,
+  );
+  expect(screen.getByRole("alert").textContent).toContain("地址无效");
+  try {
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
+    expect(screen.getByRole("alert").textContent?.toLowerCase()).toContain(
+      "invalid",
+    );
+    expect(screen.getByRole("alert").textContent).not.toMatch(
+      /[\u3400-\u9fff]/,
+    );
+  } finally {
+    await act(async () => {
+      await i18n.changeLanguage("zh");
+    });
+  }
 });

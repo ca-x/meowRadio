@@ -494,3 +494,193 @@ async fn configured_proxy_carries_catalog_requests_without_leaking_credentials()
     assert_eq!(settings["proxy_configured"], true);
     assert!(!settings.to_string().contains("proxy-password"));
 }
+
+#[tokio::test]
+async fn directory_is_cached_and_filters_work_without_a_search_keyword() {
+    use std::sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+    };
+    let observed = Arc::new(Mutex::new(Value::Null));
+    let hits = Arc::new(AtomicUsize::new(0));
+    let seen = observed.clone();
+    let counted = hits.clone();
+    let mock=Router::new().fallback(axum::routing::post(move |request:axum::extract::Request| {
+        let seen=seen.clone();let counted=counted.clone();
+        async move {
+            let path=request.uri().path().to_string();
+            let bytes=axum::body::to_bytes(request.into_body(),8192).await.unwrap();
+            let body:Value=serde_json::from_slice(&bytes).unwrap();
+            let response=match path.as_str(){
+                "/json/countries"=>{counted.fetch_add(1,Ordering::Relaxed);json!([{"name":"China","iso_3166_1":"CN","stationcount":500},{"name":"Invalid","iso_3166_1":"LOCAL","stationcount":1}])},
+                "/json/languages"=>{counted.fetch_add(1,Ordering::Relaxed);json!([{"name":"chinese","stationcount":600}])},
+                "/json/tags"=>{counted.fetch_add(1,Ordering::Relaxed);json!([{"name":"news","stationcount":50}])},
+                _=>{*seen.lock().unwrap()=body;json!([fixture()])},
+            };
+            axum::Json(response)
+        }
+    }));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, mock).await.unwrap();
+    });
+    let dir = tempfile::tempdir().unwrap();
+    let config = Config {
+        listen: "127.0.0.1:0".parse().unwrap(),
+        database: dir.path().join("directory.db"),
+        catalog_url: Some(format!("http://{address}")),
+        proxy: None,
+        secure_cookie: false,
+        registration: true,
+        relay: true,
+    };
+    let app = meowradio::app(meowradio::state(config).await.unwrap());
+    for _ in 0..2 {
+        let (code, data, _) = request(&app, "GET", "/api/directory", Value::Null, None).await;
+        assert_eq!(code, StatusCode::OK);
+        assert_eq!(data["countries"].as_array().unwrap().len(), 1);
+        assert_eq!(data["countries"][0]["value"], "CN");
+        assert_eq!(data["languages"][0]["value"], "chinese");
+    }
+    assert_eq!(hits.load(Ordering::Relaxed), 3);
+    let (code, _, _) = request(
+        &app,
+        "GET",
+        "/api/stations?country=CN&language=chinese&tag=news&sort=name&codec=MP3&bitrate_min=128",
+        Value::Null,
+        None,
+    )
+    .await;
+    assert_eq!(code, StatusCode::OK);
+    let params = observed.lock().unwrap().clone();
+    assert!(params.get("name").is_none());
+    for (key, value) in [
+        ("countrycode", "CN"),
+        ("language", "chinese"),
+        ("tag", "news"),
+        ("order", "name"),
+        ("reverse", "false"),
+        ("codec", "MP3"),
+        ("bitrateMin", "128"),
+    ] {
+        assert_eq!(params[key], value, "{key}");
+    }
+    assert_eq!(
+        request(&app, "GET", "/api/stations?sort=invalid", Value::Null, None)
+            .await
+            .0,
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(
+        request(
+            &app,
+            "GET",
+            "/api/stations?bitrate_min=999",
+            Value::Null,
+            None
+        )
+        .await
+        .0,
+        StatusCode::BAD_REQUEST
+    );
+}
+
+#[tokio::test]
+async fn standalone_login_route_and_proxy_diagnostic_permissions() {
+    let (_dir, s, app) = application().await;
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/login")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let html = String::from_utf8(
+        response
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes()
+            .to_vec(),
+    )
+    .unwrap();
+    assert!(html.contains("阿喵收音机"));
+    assert!(html.contains("/assets/"));
+    assert_eq!(
+        request(&app, "POST", "/api/proxy/test", Value::Null, None)
+            .await
+            .0,
+        StatusCode::UNAUTHORIZED
+    );
+    let (_, _, cookie) = request(&app, "POST", "/api/setup", credentials("admin"), None).await;
+    let mut config = s.config.clone();
+    config.proxy = Some("http://test-user:private-proxy-secret@127.0.0.1:1".into());
+    let unreachable = meowradio::app(meowradio::state(config).await.unwrap());
+    let (code, result, _) = request(
+        &unreachable,
+        "POST",
+        "/api/proxy/test",
+        Value::Null,
+        cookie.as_deref(),
+    )
+    .await;
+    assert_eq!(code, StatusCode::BAD_GATEWAY);
+    assert!(!result.to_string().contains("private-proxy-secret"));
+}
+
+#[tokio::test]
+async fn directory_outages_share_a_short_failure_cache() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    let count = Arc::new(AtomicUsize::new(0));
+    let hits = count.clone();
+    let mock = Router::new().fallback(axum::routing::post(move || {
+        let hits = hits.clone();
+        async move {
+            hits.fetch_add(1, Ordering::Relaxed);
+            tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+            StatusCode::SERVICE_UNAVAILABLE
+        }
+    }));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, mock).await.unwrap();
+    });
+    let dir = tempfile::tempdir().unwrap();
+    let config = Config {
+        listen: "127.0.0.1:0".parse().unwrap(),
+        database: dir.path().join("outage.db"),
+        catalog_url: Some(format!("http://{address}")),
+        proxy: None,
+        secure_cookie: false,
+        registration: true,
+        relay: true,
+    };
+    let app = meowradio::app(meowradio::state(config).await.unwrap());
+    let (a, b) = tokio::join!(
+        request(&app, "GET", "/api/directory", Value::Null, None),
+        request(&app, "GET", "/api/directory", Value::Null, None)
+    );
+    assert_eq!(a.0, StatusCode::BAD_GATEWAY);
+    assert_eq!(b.0, StatusCode::BAD_GATEWAY);
+    assert_eq!(
+        request(&app, "GET", "/api/directory", Value::Null, None)
+            .await
+            .0,
+        StatusCode::BAD_GATEWAY
+    );
+    assert_eq!(
+        count.load(Ordering::Relaxed),
+        3,
+        "an outage should be fetched once for all waiting visitors"
+    );
+}

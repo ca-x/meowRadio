@@ -1,3 +1,5 @@
+import { tr } from "./i18n";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 const play = [
   "000000000",
@@ -50,6 +52,7 @@ export default function LedScene({
   playing: boolean;
   saved: boolean;
 }) {
+  useTranslation();
   const [view, setView] = useState<"2d" | "3d">(() => {
     try {
       return localStorage.getItem("meow-led-view") === "2d" ? "2d" : "3d";
@@ -67,7 +70,11 @@ export default function LedScene({
   }
   return (
     <div className={`led-scene view-${view} ${playing ? "is-playing" : ""}`}>
-      <div className="led-scene-controls" role="group" aria-label="LED 视角">
+      <div
+        className="led-scene-controls"
+        role="group"
+        aria-label={tr("LED 视角")}
+      >
         <span>LIGHT STUDY / MR–03</span>
         <div>
           <button aria-pressed={view === "2d"} onClick={() => change("2d")}>
@@ -95,14 +102,19 @@ export default function LedScene({
                   : ring;
             return (
               <div className={`led-face led-${face}`} key={face}>
-                {Array.from({ length: 81 }, (_, i) => (
-                  <i
-                    className={`led-pixel ${pattern[Math.floor(i / 9)][i % 9] === "1" ? "lit" : ""}`}
-                    key={i}
-                  >
-                    <b />
-                  </i>
-                ))}
+                {Array.from(
+                  {
+                    length: 81,
+                  },
+                  (_, i) => (
+                    <i
+                      className={`led-pixel ${pattern[Math.floor(i / 9)][i % 9] === "1" ? "lit" : ""}`}
+                      key={i}
+                    >
+                      <b />
+                    </i>
+                  ),
+                )}
               </div>
             );
           })}
@@ -110,7 +122,7 @@ export default function LedScene({
       </div>
       <div className="led-caption">
         <span className={playing ? "active" : ""} />
-        {playing ? "信号已点亮" : "等待下一个声音"}
+        {playing ? tr("信号已点亮") : tr("等待下一个声音")}
         <span>CYAN / MAGENTA / ICE</span>
       </div>
     </div>

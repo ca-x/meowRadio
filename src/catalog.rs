@@ -1,3 +1,4 @@
+use crate::directory::Directory;
 use crate::{
     AppState, auth,
     config::Config,
@@ -58,14 +59,25 @@ pub struct Search {
     pub country: String,
     #[serde(default)]
     pub offset: u32,
+    #[serde(default)]
+    pub language: String,
+    #[serde(default)]
+    pub sort: String,
+    #[serde(default)]
+    pub codec: String,
+    #[serde(default)]
+    pub bitrate_min: u16,
 }
+type DirectoryCache = Option<(Instant, Result<Directory>)>;
+
 type StationCache = HashMap<String, (Instant, Vec<Station>)>;
 
 #[derive(Clone)]
 pub struct Catalog {
-    config: Config,
-    client: reqwest::Client,
-    slots: Arc<Semaphore>,
+    pub(crate) config: Config,
+    pub(crate) client: reqwest::Client,
+    pub(crate) slots: Arc<Semaphore>,
+    pub(crate) directory_cache: Arc<Mutex<DirectoryCache>>,
     cache: Arc<Mutex<StationCache>>,
 }
 impl Catalog {
@@ -82,6 +94,7 @@ impl Catalog {
             client: builder.build()?,
             slots: Arc::new(Semaphore::new(8)),
             cache: Default::default(),
+            directory_cache: Default::default(),
         })
     }
     async fn fetch(&self, path: String, params: HashMap<String, String>) -> Result<Vec<Station>> {
@@ -170,17 +183,37 @@ impl Catalog {
             .ok_or(AppError(StatusCode::NOT_FOUND, "电台不存在"))
     }
     pub async fn search(&self, q: Search) -> Result<Vec<Station>> {
-        if q.q.len() > 100 || q.tag.len() > 60 || q.country.len() > 2 || q.offset > 10000 {
+        if q.q.len() > 100
+            || q.tag.len() > 60
+            || q.country.len() > 2
+            || q.offset > 10000
+            || q.language.len() > 80
+            || q.bitrate_min > 320
+            || !["", "MP3", "AAC", "AAC+", "OGG", "FLAC"].contains(&q.codec.as_str())
+        {
             return Err(AppError::bad("搜索条件过长或页码超出范围"));
         }
+        let order = match q.sort.as_str() {
+            "" | "popular" => StationOrder::Clickcount,
+            "votes" => StationOrder::Votes,
+            "name" => StationOrder::Name,
+            _ => return Err(AppError::bad("不支持的排序方式")),
+        };
         let mut params = HashMap::from([
             ("limit".into(), "24".into()),
             ("offset".into(), q.offset.to_string()),
             ("hidebroken".into(), "true".into()),
-            ("order".into(), StationOrder::Clickcount.to_string()),
-            ("reverse".into(), "true".into()),
+            ("order".into(), order.to_string()),
+            ("reverse".into(), (q.sort != "name").to_string()),
+            ("bitrateMin".into(), q.bitrate_min.to_string()),
         ]);
-        for (key, value) in [("name", q.q), ("tag", q.tag), ("countrycode", q.country)] {
+        for (key, value) in [
+            ("name", q.q.trim().to_string()),
+            ("tag", q.tag),
+            ("countrycode", q.country),
+            ("language", q.language),
+            ("codec", q.codec),
+        ] {
             if !value.is_empty() {
                 params.insert(key.into(), value);
             }

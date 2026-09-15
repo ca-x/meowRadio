@@ -1,10 +1,16 @@
-import { useEffect, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import i18n, { tr, setLanguage } from "./i18n";
+import { useTranslation } from "react-i18next";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   Radio,
-  Search,
   Heart,
   Settings2,
   UserRound,
@@ -23,7 +29,12 @@ import {
 import { api, ApiError } from "./api";
 import type { Station, User, Settings } from "./api";
 import Player from "./Player";
-
+import AccountForm from "./AccountForm";
+import useTheme from "./useTheme";
+import { useNavigate } from "react-router-dom";
+import StationSearch from "./StationSearch";
+import StationFilters, { DEFAULT_FILTERS, filterCount } from "./StationFilters";
+import type { Filters } from "./StationFilters";
 function Modal({
   open,
   onOpenChange,
@@ -37,6 +48,7 @@ function Modal({
   description: string;
   children: ReactNode;
 }) {
+  useTranslation();
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -45,7 +57,10 @@ function Modal({
           <Dialog.Title>{title}</Dialog.Title>
           <Dialog.Description>{description}</Dialog.Description>
           {children}
-          <Dialog.Close className="modal-close icon-button" aria-label="关闭">
+          <Dialog.Close
+            className="modal-close icon-button"
+            aria-label={tr("关闭")}
+          >
             <X size={20} />
           </Dialog.Close>
         </Dialog.Content>
@@ -53,115 +68,20 @@ function Modal({
     </Dialog.Root>
   );
 }
-function AccountForm({
-  mode,
-  onSuccess,
-}: {
-  mode: "setup" | "login" | "register";
-  onSuccess: (user: User) => void;
-}) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [localError, setLocalError] = useState("");
-  const mutation = useMutation({
-    mutationFn: () =>
-      api<User>(mode === "setup" ? "/setup" : `/auth/${mode}`, "POST", {
-        username,
-        password,
-      }),
-    onSuccess,
-  });
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    setLocalError("");
-    if (mode !== "login" && password !== confirm) {
-      setLocalError("两次输入的密码不一致");
-      return;
-    }
-    mutation.mutate();
-  }
-  return (
-    <form className="account-form" onSubmit={submit}>
-      <label htmlFor="username">用户名</label>
-      <input
-        id="username"
-        name="username"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        autoComplete="username"
-        required
-        minLength={3}
-        maxLength={32}
-        pattern="[a-zA-Z0-9_\-]+"
-        aria-describedby="username-help"
-      />
-      <small id="username-help">3–32 位字母、数字、下划线或短横线</small>
-      <label htmlFor="password">密码</label>
-      <input
-        id="password"
-        name="password"
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        autoComplete={mode === "login" ? "current-password" : "new-password"}
-        required
-        minLength={10}
-        maxLength={128}
-      />
-      {mode !== "login" && (
-        <>
-          <small>至少 10 个字符，建议使用密码管理器生成。</small>
-          <label htmlFor="confirm">再次输入密码</label>
-          <input
-            id="confirm"
-            type="password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            autoComplete="new-password"
-            required
-          />
-        </>
-      )}
-      {(localError || mutation.error) && (
-        <p className="form-error" role="alert">
-          {localError || mutation.error?.message}
-        </p>
-      )}
-      <button className="primary" disabled={mutation.isPending}>
-        {mutation.isPending
-          ? "正在保存…"
-          : mode === "setup"
-            ? "创建管理员，开始收听"
-            : mode === "login"
-              ? "登录我的收音机"
-              : "创建账号"}
-        <ArrowUpRight size={17} />
-      </button>
-    </form>
-  );
-}
-export default function App() {
+export default function App({ active = true }: { active?: boolean }) {
+  useTranslation();
   const cache = useQueryClient();
-  const [theme, setTheme] = useState<"walnut" | "vitreous" | "led">(() => {
-    try {
-      const saved = localStorage.getItem("meow-theme");
-      return saved === "vitreous" || saved === "led" ? saved : "walnut";
-    } catch {
-      return "walnut";
-    }
-  });
+  const [theme, setTheme, colorMode, setColorMode] = useTheme();
+  const navigate = useNavigate();
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    try {
-      localStorage.setItem("meow-theme", theme);
-    } catch {
-      /* private storage */
-    }
-  }, [theme]);
+    if (active) document.title = tr("阿喵收音机");
+  }, [active, i18n.language]);
   const setup = useQuery({
     queryKey: ["setup"],
-    queryFn: () => api<{ initialized: boolean }>("/setup"),
+    queryFn: () =>
+      api<{
+        initialized: boolean;
+      }>("/setup"),
   });
   const settings = useQuery({
     queryKey: ["settings"],
@@ -177,17 +97,32 @@ export default function App() {
     retry: false,
   });
   const [accountOpen, setAccountOpen] = useState(false);
-  const [accountMode, setAccountMode] = useState<"login" | "register">("login");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const pendingAction = useRef<{
+    kind: "save" | "proxy";
+    station: Station;
+    saved?: boolean;
+    expectedUserId?: number;
+  } | null>(null);
+  useEffect(() => {
+    if (!active) {
+      setSettingsOpen(false);
+      setAccountOpen(false);
+    }
+  }, [active]);
   const [tab, setTab] = useState("discover");
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
-  const [tag, setTag] = useState("");
-  const [country, setCountry] = useState("");
+  const [filters, setFilters] = useState<Filters>({
+    ...DEFAULT_FILTERS,
+  });
+  const { tag, country, language, sort, codec, bitrateMin } = filters;
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Station | null>(null);
   const [selection, setSelection] = useState(0);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState<
+    string | { key: string; values: Record<string, unknown> }
+  >("");
   const [relay, setRelay] = useState(() => {
     try {
       return localStorage.getItem("meow-relay") === "true";
@@ -195,13 +130,16 @@ export default function App() {
       return false;
     }
   });
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setQuery(search);
-      setPage(0);
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [search]);
+  const commitSearch = useCallback((value: string) => {
+    setQuery(value);
+    setPage(0);
+  }, []);
+  const clearFilters = () => {
+    setFilters({
+      ...DEFAULT_FILTERS,
+    });
+    setPage(0);
+  };
   useEffect(() => {
     try {
       localStorage.setItem("meow-relay", String(relay));
@@ -215,10 +153,30 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [notice]);
   const stations = useQuery({
-    queryKey: ["stations", query, tag, country, page],
+    queryKey: [
+      "stations",
+      query,
+      tag,
+      country,
+      language,
+      sort,
+      codec,
+      bitrateMin,
+      page,
+    ],
+    placeholderData: keepPreviousData,
     queryFn: ({ signal }) =>
       api<Station[]>(
-        `/stations?${new URLSearchParams({ q: query, tag, country, offset: String(page * 24) })}`,
+        `/stations?${new URLSearchParams({
+          q: query,
+          tag,
+          country,
+          language,
+          sort,
+          codec,
+          bitrate_min: String(bitrateMin),
+          offset: String(page * 24),
+        })}`,
         "GET",
         undefined,
         signal,
@@ -231,38 +189,79 @@ export default function App() {
     enabled: !!me.data,
   });
   const savedIds = new Set(favorites.data?.map((s) => s.id));
+  const proxyTest = useMutation({
+    mutationFn: () =>
+      api<{
+        ok: boolean;
+        mode: string;
+        elapsed_ms: number;
+        target: string;
+      }>("/proxy/test", "POST"),
+  });
   const save = useMutation({
-    mutationFn: ({ station, saved }: { station: Station; saved: boolean }) =>
-      api(`/favorites/${station.id}`, saved ? "DELETE" : "PUT"),
+    mutationFn: ({
+      station,
+      saved,
+    }: {
+      station: Station;
+      saved: boolean;
+      userId: number;
+    }) => api(`/favorites/${station.id}`, saved ? "DELETE" : "PUT"),
     onSuccess: () => {
-      void cache.invalidateQueries({ queryKey: ["favorites"] });
+      void cache.invalidateQueries({
+        queryKey: ["favorites"],
+      });
     },
-    onError: (e) => {
-      setNotice(e.message);
+    onError: (e, variables) => {
       if (e instanceof ApiError && e.status === 401) {
+        pendingAction.current = {
+          kind: "save",
+          station: variables.station,
+          saved: variables.saved,
+          expectedUserId: variables.userId,
+        };
         cache.setQueryData(["me"], null);
-        setAccountOpen(true);
+        navigate("/login");
+        return;
       }
+      setNotice(e.message);
     },
   });
   const toggleSave = (station: Station) => {
     if (!me.data) {
-      setAccountOpen(true);
+      pendingAction.current = {
+        kind: "save",
+        station,
+      };
+      navigate("/login");
       return;
     }
-    save.mutate({ station, saved: savedIds.has(station.id) });
+    save.mutate({
+      station,
+      saved: savedIds.has(station.id),
+      userId: me.data.id,
+    });
   };
   const onAccount = (u: User) => {
     cache.setQueryData(["me"], u);
-    cache.setQueryData(["setup"], { initialized: true });
+    cache.setQueryData(["setup"], {
+      initialized: true,
+    });
     setAccountOpen(false);
-    setNotice(`欢迎，${u.username}。你的频道已就位。`);
+    setNotice({
+      key: "欢迎，{{v0}}。你的频道已就位。",
+      values: {
+        v0: u.username,
+      },
+    });
   };
   const logout = async () => {
     try {
       await api("/auth/logout", "POST");
       cache.setQueryData(["me"], null);
-      cache.removeQueries({ queryKey: ["favorites"] });
+      cache.removeQueries({
+        queryKey: ["favorites"],
+      });
       setRelay(false);
       setSelected(null);
       setTab("discover");
@@ -275,6 +274,53 @@ export default function App() {
     setSelected(s);
     setSelection((v) => v + 1);
   };
+  const chooseDirect = (station: Station) => {
+    setRelay(false);
+    choose(station);
+  };
+  const chooseProxy = (station: Station) => {
+    if (!me.data) {
+      pendingAction.current = {
+        kind: "proxy",
+        station,
+      };
+      navigate("/login");
+      return;
+    }
+    if (!settings.data?.relay_enabled) {
+      setNotice("服务端未启用代理收听");
+      return;
+    }
+    if (station.hls) {
+      setNotice("HLS 电台请使用普通播放按钮直连收听");
+      return;
+    }
+    if (settings.data.proxy_configured && station.url.startsWith("https:")) {
+      setNotice("当前出站代理中转仅支持 HTTP 音源；此 HTTPS 电台请直连收听");
+      return;
+    }
+    setRelay(true);
+    choose(station);
+  };
+  useEffect(() => {
+    if (!me.data || !settings.data || !active || !pendingAction.current) return;
+    const action = pendingAction.current;
+    pendingAction.current = null;
+    if (
+      action.expectedUserId !== undefined &&
+      action.expectedUserId !== me.data.id
+    ) {
+      setNotice("账号已切换，请重新操作收藏");
+      return;
+    }
+    if (action.kind === "save")
+      save.mutate({
+        station: action.station,
+        saved: action.saved ?? false,
+        userId: me.data.id,
+      });
+    else chooseProxy(action.station);
+  }, [me.data, settings.data, active]);
   const visible =
     tab === "favorites"
       ? (favorites.data || []).filter((s) =>
@@ -289,64 +335,89 @@ export default function App() {
     return (
       <div className="setup-page">
         <a className="brand" href="/">
-          <Radio />
+          <img
+            className="brand-logo"
+            src="/branding/logo-256.webp"
+            width="40"
+            height="40"
+            alt=""
+          />
           <span>
-            meow<span>Radio</span>
+            {tr("阿喵")}
+            <span>{tr("收音机")}</span>
           </span>
         </a>
         <main className="setup-card">
           <div className="setup-icon">
-            <Radio size={34} />
+            <img
+              src="/branding/logo-256.webp"
+              width="96"
+              height="96"
+              alt={tr("阿喵收音机 Logo")}
+            />
           </div>
-          <p className="eyebrow">第一次见面，你好。</p>
+          <p className="eyebrow">{tr("第一次见面，你好。")}</p>
           <h1>
-            让这台收音机
+            {tr("让这台收音机")}
             <br />
-            成为你的。
+            {tr("成为你的。")}
           </h1>
           <p>
-            创建首个管理员账号，完成初始化。之后，每个人都可以拥有自己的收藏频道。
+            {tr(
+              "创建首个管理员账号，完成初始化。之后，每个人都可以拥有自己的收藏频道。",
+            )}
           </p>
           <div className="setup-steps">
             <span className="complete">
-              <Check size={14} /> SQLite 已就绪
+              <Check size={14} />
+              {tr("SQLite 已就绪")}
             </span>
-            <span>创建管理员</span>
-            <span>开始收听</span>
+            <span>{tr("创建管理员")}</span>
+            <span>{tr("开始收听")}</span>
           </div>
           <AccountForm mode="setup" onSuccess={onAccount} />
           <p className="setup-note">
-            自动部署也可通过 MEOW_INIT_USERNAME 和 MEOW_INIT_PASSWORD
-            初始化。此向导仅显示一次。
+            {tr(
+              "自动部署也可通过 MEOW_INIT_USERNAME 和 MEOW_INIT_PASSWORD 初始化。此向导仅显示一次。",
+            )}
           </p>
         </main>
-        <footer>meowRadio · 一个属于你的声音角落</footer>
+        <footer>{tr("阿喵收音机 · 一个属于你的声音角落")}</footer>
       </div>
     );
   return (
     <div className="app-shell">
       <header className="site-header">
-        <a className="brand" href="/" aria-label="meowRadio 首页">
-          <Radio size={25} />
+        <a className="brand" href="/" aria-label={tr("阿喵收音机首页")}>
+          <img
+            className="brand-logo"
+            src="/branding/logo-256.webp"
+            width="40"
+            height="40"
+            alt=""
+          />
           <span>
-            meow<span>Radio</span>
+            {tr("阿喵")}
+            <span>{tr("收音机")}</span>
           </span>
-          <span className="brand-note">把世界，调到喜欢的频道。</span>
+          <span className="brand-note">{tr("把世界，调到喜欢的频道。")}</span>
         </a>
-        <nav aria-label="账号与设置">
+        <nav aria-label={tr("账号与设置")}>
           <button
             className="icon-button"
             onClick={() => setSettingsOpen(true)}
-            aria-label="连接设置"
+            aria-label={tr("连接设置")}
           >
             <Settings2 size={20} />
           </button>
           <button
             className="account-button"
-            onClick={() => setAccountOpen(true)}
+            onClick={() =>
+              me.data ? setAccountOpen(true) : navigate("/login")
+            }
           >
             <UserRound size={17} />
-            <span>{me.data?.username || "登录 / 注册"}</span>
+            <span>{me.data?.username || tr("登录 / 注册")}</span>
           </button>
         </nav>
       </header>
@@ -355,28 +426,31 @@ export default function App() {
           <div>
             <p className="eyebrow">A LITTLE RADIO. A WHOLE WORLD.</p>
             <h1>
-              好声音，慢慢听<span>。</span>
+              {tr("好声音，慢慢听")}
+              <span>{i18n.language === "en" ? "." : "。"}</span>
             </h1>
-            <p>从某座城市的清晨，到另一片海岸的深夜。</p>
+            <p>{tr("从某座城市的清晨，到另一片海岸的深夜。")}</p>
           </div>
           <span className="intro-aside">
-            <Headphones size={17} /> 留一点时间给耳朵
+            <Headphones size={17} />
+            {tr("留一点时间给耳朵")}
           </span>
         </div>
         {(setup.isError || me.isError) && (
           <div className="error-panel" role="alert">
-            服务连接失败。
+            {tr("服务连接失败。")}
             <button
               onClick={() => {
                 void setup.refetch();
                 void me.refetch();
               }}
             >
-              重新连接
+              {tr("重新连接")}
             </button>
           </div>
         )}
         <Player
+          active={active}
           theme={theme}
           station={selected}
           stations={visible}
@@ -386,9 +460,9 @@ export default function App() {
           onSave={() => selected && toggleSave(selected)}
           selection={selection}
         />
-        <section className="station-section" aria-label="电台目录">
+        <section className="station-section" aria-label={tr("电台目录")}>
           <div className="library-header">
-            <div className="tabs" role="tablist" aria-label="频道来源">
+            <div className="tabs" role="tablist" aria-label={tr("频道来源")}>
               <button
                 role="tab"
                 aria-selected={tab === "discover"}
@@ -398,7 +472,7 @@ export default function App() {
                 }}
               >
                 <Globe2 size={18} />
-                发现电台
+                {tr("发现电台")}
               </button>
               <button
                 role="tab"
@@ -409,128 +483,152 @@ export default function App() {
                 }}
               >
                 <Heart size={18} />
-                我的收藏
+                {tr("我的收藏")}
                 {me.data && (
                   <span className="count">{favorites.data?.length || 0}</span>
                 )}
               </button>
             </div>
-            <div className="search-field">
-              <Search size={17} />
-              <input
-                aria-label="搜索电台"
-                placeholder="搜索你想听的电台…"
+            <div className="library-tools">
+              <StationSearch
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                maxLength={100}
+                committedValue={query}
+                onChange={setSearch}
+                onCommit={commitSearch}
               />
-              {search && (
-                <button aria-label="清空搜索" onClick={() => setSearch("")}>
-                  <X size={16} />
-                </button>
+              {tab === "discover" && active && (
+                <StationFilters
+                  value={filters}
+                  onApply={(next) => {
+                    setFilters(next);
+                    setPage(0);
+                  }}
+                />
               )}
             </div>
           </div>
-          {tab === "discover" && (
-            <div className="filters">
-              <div className="genre-filters">
-                {[
-                  ["", "全部频道"],
-                  ["jazz", "爵士"],
-                  ["classical", "古典"],
-                  ["ambient", "氛围"],
-                  ["pop", "流行"],
-                  ["rock", "摇滚"],
-                  ["news", "新闻"],
-                ].map(([value, label]) => (
-                  <button
-                    className={tag === value ? "selected" : ""}
-                    key={value}
-                    aria-pressed={tag === value}
-                    onClick={() => {
-                      setTag(value);
-                      setPage(0);
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <label className="country-filter">
-                <Globe2 size={14} />
-                <select
-                  aria-label="按国家筛选"
-                  value={country}
-                  onChange={(e) => {
-                    setCountry(e.target.value);
-                    setPage(0);
-                  }}
-                >
-                  <option value="">世界各地</option>
-                  <option value="CN">中国</option>
-                  <option value="US">美国</option>
-                  <option value="GB">英国</option>
-                  <option value="JP">日本</option>
-                  <option value="DE">德国</option>
-                  <option value="FR">法国</option>
-                  <option value="TW">中国台湾</option>
-                </select>
-              </label>
-            </div>
-          )}
+          <p id="search-help" className="sr-only">
+            {tr(
+              "支持电台名称、FM 或频率关键词；也可使用筛选按钮按国家和语言浏览。",
+            )}
+          </p>
+          <p className="search-progress" role="status" aria-live="polite">
+            {tab === "discover" && stations.isFetching
+              ? stations.isPlaceholderData
+                ? tr("正在搜索，暂时显示上一次结果…")
+                : tr("正在寻找电台…")
+              : currentQuery.isSuccess
+                ? tr("{{v0}} {{v1}} 个电台", {
+                    v0: tab === "favorites" ? tr("收藏中匹配") : tr("本页找到"),
+                    v1: visible.length,
+                  })
+                : ""}
+          </p>
           {tab === "favorites" && !me.data ? (
             <div className="empty-state">
               <Heart size={30} />
-              <h3>为喜欢的声音留个位置</h3>
-              <p>登录后，收藏会跟随你的账号保存。</p>
-              <button className="primary" onClick={() => setAccountOpen(true)}>
-                登录并收藏
+              <h3>{tr("为喜欢的声音留个位置")}</h3>
+              <p>{tr("登录后，收藏会跟随你的账号保存。")}</p>
+              <button
+                className="primary"
+                onClick={() =>
+                  me.data ? setAccountOpen(true) : navigate("/login")
+                }
+              >
+                {tr("登录并收藏")}
                 <ArrowUpRight size={16} />
               </button>
             </div>
           ) : currentQuery.isPending ? (
             <div
               className="station-grid"
-              aria-label="正在加载电台"
+              aria-label={tr("正在加载电台")}
               aria-busy="true"
             >
-              {Array.from({ length: 6 }, (_, i) => (
-                <div className="station-skeleton" key={i}>
-                  <span />
-                  <div>
-                    <i />
-                    <i />
+              {Array.from(
+                {
+                  length: 6,
+                },
+                (_, i) => (
+                  <div className="station-skeleton" key={i}>
+                    <span />
+                    <div>
+                      <i />
+                      <i />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ),
+              )}
             </div>
           ) : currentQuery.isError ? (
             <div className="empty-state" role="alert">
               <Signal size={30} />
-              <h3>信号暂时没有到达</h3>
-              <p>{currentQuery.error.message}</p>
+              <h3>{tr("信号暂时没有到达")}</h3>
+              <p>{tr(currentQuery.error.message)}</p>
               <button
                 className="primary"
                 onClick={() => void currentQuery.refetch()}
               >
                 <RotateCw size={16} />
-                重新连接
+                {tr("重新连接")}
               </button>
             </div>
           ) : !visible.length ? (
             <div className="empty-state">
               <Radio size={30} />
               <h3>
-                {tab === "favorites" ? "还没有收藏的频道" : "没有找到这个声音"}
+                {tab === "favorites"
+                  ? tr("还没有收藏的频道")
+                  : tr("没有找到这个声音")}
               </h3>
               <p>
                 {tab === "favorites"
-                  ? "在电台旁点一下爱心，把喜欢的声音留下来。"
-                  : "试试其他关键词，或者选择更多国家和音乐类型。"}
+                  ? query
+                    ? tr("收藏里没有匹配的电台，可以到全部电台中继续搜索。")
+                    : tr("在电台旁点一下爱心，把喜欢的声音留下来。")
+                  : filterCount(filters) > 0
+                    ? tr(
+                        "当前关键词和筛选条件没有同时匹配的电台，试试放宽国家或分类。",
+                      )
+                    : tr(
+                        "试试电台简称，或只输入频率数字（例如 104.2）。目录未收录的电台无法显示。",
+                      )}
               </p>
+              <div className="empty-actions">
+                {tab === "favorites" && query && (
+                  <button
+                    className="primary"
+                    onClick={() => {
+                      setTab("discover");
+                      clearFilters();
+                    }}
+                  >
+                    {tr("在全部电台中搜索")}
+                  </button>
+                )}
+                {tab === "discover" && filterCount(filters) > 0 && (
+                  <button className="primary" onClick={clearFilters}>
+                    {tr("清除筛选条件")}
+                  </button>
+                )}
+                {query && (
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      setSearch("");
+                      commitSearch("");
+                    }}
+                  >
+                    {tr("清空关键词")}
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
-            <div className="station-grid">
+            <div
+              className="station-grid"
+              aria-busy={tab === "discover" && stations.isFetching}
+            >
               {visible.map((s, i) => (
                 <article
                   className={`station-card ${s.id === selected?.id ? "tuned" : ""}`}
@@ -538,8 +636,10 @@ export default function App() {
                 >
                   <button
                     className="station-play"
-                    onClick={() => choose(s)}
-                    aria-label={`收听 ${s.name}`}
+                    onClick={() => chooseDirect(s)}
+                    aria-label={tr("收听 {{v0}}", {
+                      v0: s.name,
+                    })}
                   >
                     <span
                       className={`station-art art-${i % 6}`}
@@ -550,29 +650,42 @@ export default function App() {
                     <span className="station-info">
                       <strong>{s.name}</strong>
                       <span>
-                        {s.country || "世界电台"}
+                        {s.country || tr("世界电台")}
                         <span className="separator"> / </span>
                         {s.tags.split(",").filter(Boolean)[0] || "Radio"}
                       </span>
                       <span className="station-quality">
                         {s.codec || "AUDIO"}
                         {s.bitrate ? ` · ${s.bitrate} kbps` : ""}
-                        {s.id === selected?.id ? " · 已选台" : ""}
+                        {s.id === selected?.id ? tr(" · 已选台") : ""}
                       </span>
                     </span>
                   </button>
-                  <button
-                    className={`save-button icon-button ${savedIds.has(s.id) ? "saved" : ""}`}
-                    aria-label={`${savedIds.has(s.id) ? "取消收藏" : "收藏"} ${s.name}`}
-                    aria-pressed={savedIds.has(s.id)}
-                    disabled={save.isPending}
-                    onClick={() => toggleSave(s)}
-                  >
-                    <Heart
-                      size={18}
-                      fill={savedIds.has(s.id) ? "currentColor" : "none"}
-                    />
-                  </button>
+                  <div className="station-actions">
+                    <button
+                      className={`proxy-play icon-button ${s.id === selected?.id && relay ? "active" : ""}`}
+                      aria-label={tr("代理收听 {{v0}}", {
+                        v0: s.name,
+                      })}
+                      aria-pressed={s.id === selected?.id && relay}
+                      title={tr("通过服务端收听")}
+                      onClick={() => chooseProxy(s)}
+                    >
+                      <Cable size={18} />
+                    </button>
+                    <button
+                      className={`save-button icon-button ${savedIds.has(s.id) ? "saved" : ""}`}
+                      aria-label={`${savedIds.has(s.id) ? tr("取消收藏") : tr("收藏")} ${s.name}`}
+                      aria-pressed={savedIds.has(s.id)}
+                      disabled={save.isPending}
+                      onClick={() => toggleSave(s)}
+                    >
+                      <Heart
+                        size={18}
+                        fill={savedIds.has(s.id) ? "currentColor" : "none"}
+                      />
+                    </button>
+                  </div>
                 </article>
               ))}
             </div>
@@ -581,13 +694,16 @@ export default function App() {
             <div className="pagination">
               <span>
                 {stations.isFetching
-                  ? "正在寻找声音…"
-                  : `第 ${page + 1} 页 · ${visible.length} 个频道`}
+                  ? tr("正在寻找声音…")
+                  : tr("第 {{v0}} 页 · {{v1}} 个频道", {
+                      v0: page + 1,
+                      v1: visible.length,
+                    })}
               </span>
               <div>
                 <button
                   className="icon-button"
-                  aria-label="上一页"
+                  aria-label={tr("上一页")}
                   disabled={page === 0 || stations.isFetching}
                   onClick={() => setPage((v) => v - 1)}
                 >
@@ -595,7 +711,7 @@ export default function App() {
                 </button>
                 <button
                   className="icon-button"
-                  aria-label="下一页"
+                  aria-label={tr("下一页")}
                   disabled={
                     visible.length < 24 || stations.isFetching || page >= 416
                   }
@@ -610,72 +726,95 @@ export default function App() {
       </main>
       <footer className="site-footer">
         <span>
-          <Radio size={15} /> meowRadio <span className="footer-dot">·</span>{" "}
-          为每一种心情，留一个频道。
+          <img
+            className="footer-logo"
+            src="/branding/logo-256.webp"
+            width="22"
+            height="22"
+            alt=""
+          />{" "}
+          {tr("阿喵收音机")}
+          <span className="footer-dot">·</span>{" "}
+          {tr("为每一种心情，留一个频道。")}
         </span>
         <a
           href="https://www.radio-browser.info/"
           target="_blank"
           rel="noreferrer"
         >
-          电台目录来自 Radio Browser <ArrowUpRight size={13} />
+          {tr("电台目录来自 Radio Browser")}
+          <ArrowUpRight size={13} />
         </a>
       </footer>
       <Modal
         open={accountOpen}
         onOpenChange={setAccountOpen}
-        title={
-          me.data
-            ? "我的收音机"
-            : accountMode === "login"
-              ? "欢迎回来"
-              : "留住喜欢的声音"
-        }
+        title={tr("我的收音机")}
         description={
           me.data
-            ? `${me.data.username} · ${me.data.role === "admin" ? "管理员" : "听众"}，收藏只属于你。`
-            : "一个账号，一份自己的电台收藏。"
+            ? tr("{{v0}} · {{v1}}，收藏只属于你。", {
+                v0: me.data.username,
+                v1: me.data.role === "admin" ? tr("管理员") : tr("听众"),
+              })
+            : ""
         }
       >
-        {me.data ? (
+        {me.data && (
           <div className="account-summary">
             <Heart size={24} />
-            <p>已收藏 {favorites.data?.length || 0} 个电台</p>
+            <p>
+              {tr("已收藏")}
+              {favorites.data?.length || 0}
+              {tr("个电台")}
+            </p>
             <button className="secondary" onClick={() => void logout()}>
               <LogOut size={16} />
-              退出登录
+              {tr("退出登录")}
             </button>
           </div>
-        ) : (
-          <>
-            <AccountForm
-              key={accountMode}
-              mode={accountMode}
-              onSuccess={onAccount}
-            />
-            {settings.data?.registration_enabled && (
-              <button
-                className="text-button"
-                onClick={() =>
-                  setAccountMode((v) => (v === "login" ? "register" : "login"))
-                }
-              >
-                {accountMode === "login"
-                  ? "还没有账号？创建一个"
-                  : "已有账号？返回登录"}
-              </button>
-            )}
-          </>
         )}
       </Modal>
       <Modal
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
-        title="外观与连接"
-        description="让收音机成为你喜欢的样子。"
+        title={tr("外观与连接")}
+        description={tr("让收音机成为你喜欢的样子。")}
       >
+        <div className="appearance-settings">
+          <label>
+            {tr("语言")}
+            <select
+              value={i18n.language === "en" ? "en" : "zh"}
+              onChange={(e) => setLanguage(e.target.value as "zh" | "en")}
+            >
+              <option value="zh">简体中文</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+          <div>
+            <span>{tr("颜色")}</span>
+            <div
+              className="color-mode-buttons"
+              role="group"
+              aria-label={tr("颜色")}
+            >
+              <button
+                aria-pressed={colorMode === "light"}
+                onClick={() => setColorMode("light")}
+              >
+                {tr("浅色")}
+              </button>
+              <button
+                aria-pressed={colorMode === "dark"}
+                onClick={() => setColorMode("dark")}
+              >
+                {tr("暗色")}
+              </button>
+            </div>
+          </div>
+        </div>
         <fieldset className="theme-options">
-          <legend>收音机主题</legend>
+          <legend>{tr("收音机主题")}</legend>
           <label className={theme === "walnut" ? "chosen" : ""}>
             <input
               type="radio"
@@ -684,8 +823,8 @@ export default function App() {
               onChange={() => setTheme("walnut")}
             />
             <span className="theme-preview walnut-preview" />
-            <strong>胡桃木</strong>
-            <small>温暖的模拟时光</small>
+            <strong>{tr("胡桃木")}</strong>
+            <small>{tr("温暖的模拟时光")}</small>
           </label>
           <label className={theme === "vitreous" ? "chosen" : ""}>
             <input
@@ -695,8 +834,8 @@ export default function App() {
               onChange={() => setTheme("vitreous")}
             />
             <span className="theme-preview vitreous-preview" />
-            <strong>琉璃夜色</strong>
-            <small>青紫光影，玻璃质感</small>
+            <strong>{tr("琉璃夜色")}</strong>
+            <small>{tr("青紫光影，玻璃质感")}</small>
           </label>
           <label className={theme === "led" ? "chosen" : ""}>
             <input
@@ -706,8 +845,19 @@ export default function App() {
               onChange={() => setTheme("led")}
             />
             <span className="theme-preview led-preview" />
-            <strong>光阵立方</strong>
-            <small>三面 LED，点亮声音</small>
+            <strong>{tr("光阵立方")}</strong>
+            <small>{tr("三面 LED，点亮声音")}</small>
+          </label>
+          <label className={theme === "soft" ? "chosen" : ""}>
+            <input
+              type="radio"
+              name="theme"
+              checked={theme === "soft"}
+              onChange={() => setTheme("soft")}
+            />
+            <span className="theme-preview soft-preview" />
+            <strong>{tr("云白拟态")}</strong>
+            <small>{tr("轻柔机身，圆形调谐")}</small>
           </label>
         </fieldset>
         <div className="connection-status">
@@ -715,14 +865,41 @@ export default function App() {
           <div>
             <strong>
               {settings.data?.proxy_configured
-                ? "服务端代理已配置"
-                : "服务端使用直接连接"}
+                ? tr("服务端代理已配置")
+                : tr("服务端使用直接连接")}
             </strong>
-            <p>代理地址与凭据由部署者管理。</p>
+            <p>{tr("代理地址与凭据由部署者管理。")}</p>
           </div>
         </div>
+        <div className="proxy-test">
+          <button
+            className="secondary"
+            disabled={!me.data || proxyTest.isPending}
+            onClick={() => proxyTest.mutate()}
+          >
+            {proxyTest.isPending
+              ? tr("正在测试…")
+              : settings.data?.proxy_configured
+                ? tr("测试代理连接")
+                : tr("测试服务端连接")}
+          </button>
+          {!me.data && <p>{tr("登录后可测试连接。")}</p>}
+          {proxyTest.data && (
+            <p role="status">
+              {proxyTest.data.mode === "proxy"
+                ? tr("代理连接正常")
+                : tr("服务端外网连接正常")}{" "}
+              · {proxyTest.data.elapsed_ms} ms
+            </p>
+          )}
+          {proxyTest.error && (
+            <p className="form-error" role="alert">
+              {tr(proxyTest.error.message)}
+            </p>
+          )}
+        </div>
         <fieldset className="playback-options">
-          <legend>收听方式</legend>
+          <legend>{tr("收听方式")}</legend>
           <label>
             <input
               type="radio"
@@ -731,8 +908,8 @@ export default function App() {
               onChange={() => setRelay(false)}
             />
             <span>
-              <strong>浏览器直连</strong>
-              <small>直接连接电台，支持普通音频和 HLS。</small>
+              <strong>{tr("浏览器直连")}</strong>
+              <small>{tr("直接连接电台，支持普通音频和 HLS。")}</small>
             </span>
           </label>
           <label>
@@ -744,33 +921,36 @@ export default function App() {
               onChange={() => setRelay(true)}
             />
             <span>
-              <strong>服务端中转</strong>
+              <strong>{tr("服务端中转")}</strong>
               <small>
                 {!me.data
-                  ? "登录后可用。"
+                  ? tr("登录后可用。")
                   : !settings.data?.relay_enabled
-                    ? "此服务未启用中转。"
-                    : "适合 HTTP 电台或浏览器无法连接的音源。"}
+                    ? tr("此服务未启用中转。")
+                    : tr("适合 HTTP 电台或浏览器无法连接的音源。")}
               </small>
             </span>
           </label>
         </fieldset>
         <p className="settings-note">
-          中转支持公共 HTTP/HTTPS 音频流。配置代理时仅中转 HTTP 音源；HTTPS 与
-          HLS 音源请选择直连。
+          {tr(
+            "中转支持公共 HTTP/HTTPS 音频流。配置代理时仅中转 HTTP 音源；HTTPS 与 HLS 音源请选择直连。",
+          )}
         </p>
         <button className="primary" onClick={() => setSettingsOpen(false)}>
-          完成
+          {tr("完成")}
           <Check size={16} />
         </button>
       </Modal>
       {notice && (
         <div className="toast" role="status">
-          {notice}
+          {typeof notice === "string"
+            ? tr(notice)
+            : tr(notice.key, notice.values)}
           <button
             className="icon-button"
             onClick={() => setNotice("")}
-            aria-label="关闭提示"
+            aria-label={tr("关闭提示")}
           >
             <X size={16} />
           </button>

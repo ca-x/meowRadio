@@ -1,7 +1,9 @@
 pub mod auth;
 pub mod catalog;
 pub mod config;
+pub mod directory;
 pub mod error;
+pub mod proxy;
 pub mod relay;
 pub mod setup;
 use argon2::{Argon2, PasswordHasher, password_hash::SaltString};
@@ -89,7 +91,7 @@ async fn security(State(s): State<AppState>, request: Request, next: Next) -> Re
     }
     if matches!(
         path,
-        "/api/auth/login" | "/api/auth/register" | "/api/setup"
+        "/api/auth/login" | "/api/auth/register" | "/api/setup" | "/api/proxy/test"
     ) && request.method() == axum::http::Method::POST
     {
         let ip = request
@@ -140,7 +142,11 @@ async fn frontend(uri: axum::http::Uri) -> Response {
     if path.starts_with("api/") {
         return StatusCode::NOT_FOUND.into_response();
     }
-    let path = if path.is_empty() { "index.html" } else { path };
+    let path = if path.is_empty() || path.trim_end_matches('/') == "login" {
+        "index.html"
+    } else {
+        path
+    };
     let Some(asset) = Assets::get(path) else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -181,12 +187,14 @@ pub fn app(s: AppState) -> Router {
     let api = Router::new()
         .route("/health", get(health))
         .route("/settings", get(settings))
+        .route("/proxy/test", post(proxy::test))
         .route("/setup", get(setup::status).post(setup::initialize))
         .route("/auth/me", get(auth::me))
         .route("/auth/register", post(auth::register))
         .route("/auth/login", post(auth::login))
         .route("/auth/logout", post(auth::logout))
         .route("/stations", get(catalog::search))
+        .route("/directory", get(directory::get))
         .route("/stations/{id}/click", post(catalog::click))
         .route("/favorites", get(catalog::favorites))
         .route(

@@ -1,0 +1,699 @@
+/* Color mode is independent of the receiver skin. Device geometry stays in the
+   skin stylesheets; these tokens also keep dialogs and native fields coherent. */
+:root[data-color] {
+  --canvas: #eeeae3;
+  --surface: #f7f4ef;
+  --field: #fffdf9;
+  --surface-raised: #e8e1d6;
+  --control-line: #9b9080;
+  --accent-ink: #fffaf4;
+  --selected: #f5e5d6;
+  --danger: #9b301d;
+  --danger-surface: #f7e6dd;
+  --material: linear-gradient(120deg, #faf8f4, #f3eee6);
+  --material-shadow: 0 2px 5px #39291f0b;
+  --field-shadow: inset 0 1px 3px #39291f0c;
+  --overlay: #201c1799;
+  --ink: #302e29;
+  --muted: #625b51;
+  --accent: #a13e28;
+  --paper: var(--surface);
+  --line: #c9c0b4;
+  color: var(--ink);
+  background: var(--canvas);
+}
+
+:root[data-color="light"] {
+  color-scheme: light;
+}
+
+:root[data-color="dark"] {
+  color-scheme: dark;
+  --canvas: #1c1916;
+  --surface: #28231e;
+  --field: #201c18;
+  --surface-raised: #383027;
+  --control-line: #887867;
+  --accent-ink: #241710;
+  --selected: #3b2b20;
+  --danger: #ffb2a0;
+  --danger-surface: #44271f;
+  --material: linear-gradient(120deg, #302923, #27211d);
+  --material-shadow: 0 3px 8px #0002, inset 0 1px #f9e5c609;
+  --field-shadow: inset 0 2px 4px #0003;
+  --overlay: #090806ba;
+  --ink: #f2e9db;
+  --muted: #bdb09e;
+  --accent: #edb37b;
+  --line: #514437;
+}
+
+:root[data-theme="vitreous"][data-color="light"] {
+  --canvas: #eaf0f5;
+  --surface: #f3f7fc;
+  --field: #f8fbff;
+  --surface-raised: #dce6ee;
+  --control-line: #8196ab;
+  --ink: #203144;
+  --muted: #526278;
+  --accent: #006b7a;
+  --accent-ink: #ffffff;
+  --selected: #dceef3;
+  --line: #b7c8d8;
+  --material: linear-gradient(125deg, #f5f0fded, #effbffed);
+  --material-shadow: 0 4px 16px #37516b10, inset 0 1px #fff;
+  --field-shadow: inset 0 1px 3px #31557310;
+  --overlay: #20324d66;
+}
+
+:root[data-theme="vitreous"][data-color="dark"] {
+  --canvas: #080b12;
+  --surface: #111923;
+  --field: #0b121d;
+  --surface-raised: #233043;
+  --control-line: #627b94;
+  --ink: #edf4fb;
+  --muted: #aebcd0;
+  --accent: #72deed;
+  --accent-ink: #08222b;
+  --selected: #172e3a;
+  --line: #314255;
+  --material: linear-gradient(125deg, #1c1728f5, #101f2bf5);
+  --material-shadow: 0 4px 18px #0003, inset 0 1px #d9eeff0b;
+  --overlay: #03060ccc;
+}
+
+:root[data-theme="led"][data-color="light"] {
+  --canvas: #e4e8e4;
+  --surface: #f0f3ef;
+  --field: #f8faf7;
+  --surface-raised: #d4ddd5;
+  --control-line: #809386;
+  --ink: #26362e;
+  --muted: #536359;
+  --accent: #23694e;
+  --accent-ink: #ffffff;
+  --selected: #d8e8dc;
+  --line: #b5c3b8;
+  --material: linear-gradient(135deg, #f0f3ef, #e5ebe5);
+  --material-shadow: 0 2px 5px #213b2c10, inset 0 1px #fff9;
+  --overlay: #1b302666;
+}
+
+:root[data-theme="led"][data-color="dark"] {
+  --canvas: #151a17;
+  --surface: #222a25;
+  --field: #181f1b;
+  --surface-raised: #344139;
+  --control-line: #758e7c;
+  --ink: #edf3ec;
+  --muted: #b5c3b7;
+  --accent: #a0efdb;
+  --accent-ink: #10271e;
+  --selected: #283d32;
+  --line: #425348;
+  --material: linear-gradient(135deg, #29332c, #222a25);
+  --material-shadow: 0 3px 8px #0002, inset 0 1px #e8ffe60b;
+  --overlay: #060b08c4;
+}
+
+:root[data-theme="soft"][data-color="light"] {
+  --canvas: #dfe7ef;
+  --surface: #e7eef5;
+  --field: #e1eaf2;
+  --surface-raised: #ccdbe5;
+  --control-line: #8298ab;
+  --ink: #344957;
+  --muted: #4f6375;
+  --accent: #346548;
+  --accent-ink: #ffffff;
+  --selected: #dce9df;
+  --line: #b4c5d2;
+  --material: linear-gradient(135deg, #edf3f8, #dfe8f0);
+  --material-shadow: 5px 5px 12px #a6b9ca66, -5px -5px 12px #ffffffa6;
+  --field-shadow: inset 2px 2px 5px #acbfce77, inset -2px -2px 5px #f9fcff;
+  --overlay: #35485c80;
+}
+
+:root[data-theme="soft"][data-color="dark"] {
+  --canvas: #252f39;
+  --surface: #303e49;
+  --field: #293640;
+  --surface-raised: #43535e;
+  --control-line: #81949f;
+  --ink: #e7f0f4;
+  --muted: #b6c8d3;
+  --accent: #b5dcaf;
+  --accent-ink: #233d2b;
+  --selected: #344b3f;
+  --line: #526571;
+  --material: linear-gradient(135deg, #354550, #2c3944);
+  --material-shadow: 5px 5px 12px #151f28a6, -5px -5px 12px #46586755;
+  --field-shadow: inset 3px 3px 7px #14212a99, inset -2px -2px 5px #50627055;
+  --overlay: #111a24b3;
+}
+
+/* Quiet page surfaces leave the radio itself as the visual anchor. */
+:root[data-color] body,
+:root[data-color] .login-page,
+:root[data-color] .setup-page {
+  background: var(--canvas);
+  color: var(--ink);
+  min-height: 100dvh;
+}
+
+:root[data-color] :is(.brand > svg, .intro h1 > span, .save-button.saved) {
+  color: var(--accent);
+}
+
+:root[data-color] :is(.site-header, .brand .brand-note, .pagination button) {
+  border-color: var(--line);
+}
+
+:root[data-color]
+  :is(.account-button, .search-field, .filter-trigger, .secondary) {
+  background: var(--material);
+  color: var(--ink);
+  border-color: var(--control-line);
+  box-shadow: var(--material-shadow);
+}
+
+:root[data-color] :is(.station-card, .station-skeleton) {
+  background: var(--material);
+  border-color: var(--line);
+  box-shadow: var(--material-shadow);
+}
+
+:root[data-color] .station-card.tuned {
+  background: var(--selected);
+  border-color: var(--accent);
+}
+
+:root[data-color]
+  :is(.save-button, .separator, .footer-dot, .empty-state > svg) {
+  color: var(--muted);
+}
+
+:root[data-color] :is(.count, .connection-status) {
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+
+:root[data-color] :is(.station-skeleton > span, .station-skeleton i) {
+  background: var(--surface-raised);
+}
+
+:root[data-color] .empty-state {
+  background: var(--surface);
+  border-color: var(--control-line);
+}
+
+:root[data-color] .genre-filters button.selected,
+:root[data-color] .primary,
+:root[data-color] .filter-count {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+:root[data-color] .filter-trigger.has-filters {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+:root[data-color] :is(.modal, .login-card, .setup-card) {
+  color: var(--ink);
+  background: var(--material);
+  border-color: var(--line);
+  box-shadow:
+    var(--material-shadow),
+    0 20px 65px #0002;
+}
+
+:root[data-color] .modal-overlay {
+  background: var(--overlay);
+}
+
+:root[data-color] :is(.account-form input, .filter-fields select) {
+  color: var(--ink);
+  background: var(--field);
+  border-color: var(--control-line);
+  box-shadow: var(--field-shadow);
+}
+
+:root[data-color] .search-field input {
+  color: var(--ink);
+}
+
+:root[data-color] input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+:root[data-color] select option {
+  color: var(--ink);
+  background: var(--field);
+}
+
+:root[data-color] .theme-options label {
+  background: var(--surface);
+  border-color: var(--control-line);
+}
+
+:root[data-color] .theme-options label.chosen {
+  background: var(--selected);
+}
+
+:root[data-color]
+  :is(
+    .account-form .form-error,
+    .login-card .form-error,
+    .proxy-test .form-error
+  ) {
+  color: var(--danger);
+}
+
+:root[data-color] :is(.error-panel, .receiver > .playback-error) {
+  background: var(--danger-surface);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+:root[data-color] .setup-steps .complete {
+  color: var(--accent);
+}
+
+:root[data-color] .toast {
+  background: var(--surface);
+  border-color: var(--control-line);
+  color: var(--ink);
+  box-shadow: 0 5px 24px #0003;
+}
+
+/* Walnut at night: the grain stays walnut, with a brushed bronze faceplate. */
+:root[data-theme="walnut"][data-color="dark"] .receiver {
+  box-shadow:
+    inset 0 1px #d4a87666,
+    inset 0 -3px 5px #160c0aaa,
+    0 18px 35px #0006;
+}
+
+:root[data-theme="walnut"][data-color="dark"] .receiver-face {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      #fff0 0,
+      #e6cfab09 1px,
+      #18120d0d 2px,
+      #fff0 3px
+    ),
+    linear-gradient(115deg, #484139, #524b40 36%, #38352f);
+  border-color: #7a6b55;
+  box-shadow:
+    0 0 0 1px #120d09,
+    0 3px 8px #100b0999,
+    inset 0 1px #dac4a033;
+}
+
+:root[data-theme="walnut"][data-color="dark"]
+  :is(
+    .engraved,
+    .model,
+    .scale-labels,
+    .scale-caption,
+    .power-group > span,
+    .transport > span,
+    .volume-group label,
+    .receiver-foot
+  ) {
+  color: #e7d8c0;
+  text-shadow: 0 1px #19140d;
+}
+
+:root[data-theme="walnut"][data-color="dark"] .receiver-foot {
+  border-color: #a58d6966;
+}
+
+:root[data-theme="walnut"][data-color="dark"] .scale-ticks {
+  background: repeating-linear-gradient(
+    90deg,
+    #d0b89399 0 1px,
+    transparent 1px 8px
+  );
+}
+
+:root[data-theme="walnut"][data-color="dark"] .volume-group input {
+  accent-color: #edc38e;
+}
+
+/* Glass in daylight keeps violet refraction and cyan details, with dark ink. */
+:root[data-theme="vitreous"][data-color="light"] .receiver-vitreous {
+  background: linear-gradient(125deg, #e8e0f8cc, #eef8ffb3 48%, #d4edf3cc);
+  border-color: #b7c7dc;
+  box-shadow:
+    inset 0 1px #fff,
+    inset 0 -1px #99bad03b,
+    0 18px 40px #4d6e8f21;
+}
+
+:root[data-theme="vitreous"][data-color="light"] .night-card {
+  background: #f8fbff99;
+  border-color: #adbed0;
+  box-shadow:
+    inset 0 1px #fff,
+    0 5px 18px #51668010;
+}
+
+:root[data-theme="vitreous"][data-color="light"]
+  :is(.night-readout strong, .night-metadata h2) {
+  color: var(--ink);
+}
+
+:root[data-theme="vitreous"][data-color="light"]
+  :is(
+    .night-status,
+    .night-metadata > p,
+    .night-volume,
+    .night-ticks b,
+    .night-caption
+  ) {
+  color: #4c5d75;
+}
+
+:root[data-theme="vitreous"][data-color="light"] .night-status {
+  border-color: #9cacc2;
+  background: #f1f5fc99;
+}
+
+:root[data-theme="vitreous"][data-color="light"]
+  :is(
+    .night-readout > span,
+    .night-metadata > span,
+    .night-volume .icon-button,
+    .night-status.live
+  ) {
+  color: #006879;
+}
+
+:root[data-theme="vitreous"][data-color="light"] .night-small {
+  color: #274d64;
+  background: #f8fcffb3;
+  border-color: #829aaf;
+}
+
+:root[data-theme="vitreous"][data-color="light"] .night-play {
+  color: #fff !important;
+  background: #175a70 !important;
+  box-shadow:
+    inset 0 1px #fff4,
+    0 5px 15px #175a7026;
+}
+
+:root[data-theme="vitreous"][data-color="light"] .night-wave i {
+  background: linear-gradient(0deg, #00899b, #7355b4);
+}
+
+:root[data-theme="vitreous"][data-color="light"] .night-volume input {
+  accent-color: #006b7a;
+}
+
+:root[data-theme="vitreous"][data-color="light"] .night-ticks > span {
+  background: #687e9766;
+}
+
+:root[data-theme="vitreous"][data-color="light"] .night-ticks > .major {
+  background: #687e97;
+}
+
+:root[data-theme="vitreous"][data-color="light"] .night-ticks > .active {
+  background: #006b7a;
+}
+
+:root[data-theme="vitreous"][data-color="light"] .station-art {
+  background: linear-gradient(140deg, #ddd4ed, #cce7ee);
+  color: #3b4e68;
+  box-shadow: inset 0 0 0 1px #70849c33;
+}
+
+/* Daylight changes the LED enclosure and stage, preserving graphite pixels. */
+:root[data-theme="led"][data-color="light"] .receiver-led {
+  background: linear-gradient(135deg, #d0d9d1, #b7c3ba);
+  border-color: #83988a;
+  box-shadow:
+    inset 0 1px #ffffffbd,
+    0 14px 30px #263e3024;
+}
+
+:root[data-theme="led"][data-color="light"] .receiver-led .night-card {
+  background: linear-gradient(135deg, #ecf0e9, #dfe7df);
+  border-color: #99ac9d;
+  box-shadow: inset 0 1px #fff9;
+}
+
+:root[data-theme="led"][data-color="light"] .night-metadata h2 {
+  color: #26362e;
+}
+
+:root[data-theme="led"][data-color="light"]
+  :is(.night-metadata > p, .night-volume) {
+  color: #526358;
+}
+
+:root[data-theme="led"][data-color="light"]
+  :is(.night-metadata > span, .night-volume .icon-button) {
+  color: #296347;
+}
+
+:root[data-theme="led"][data-color="light"] .night-small {
+  background: linear-gradient(#f2f6ef, #d0ded1);
+  border-color: #91a491;
+  color: #365640;
+  box-shadow:
+    inset 0 1px #fff,
+    0 2px 3px #203a2526;
+}
+
+:root[data-theme="led"][data-color="light"] .night-play {
+  background: #355e45 !important;
+  color: #fff !important;
+  box-shadow:
+    inset 0 1px #ffffff33,
+    0 4px 10px #263e3026;
+}
+
+:root[data-theme="led"][data-color="light"] .night-volume input {
+  accent-color: #355e45;
+}
+
+:root[data-theme="led"][data-color="light"] .led-scene {
+  background: linear-gradient(
+    #ccd7cb 0%,
+    #bbc8bb 53%,
+    #e0e5d8 53%,
+    #cbd5c6 100%
+  );
+  border-color: #849881;
+  box-shadow: inset 0 0 30px #4e644b22;
+}
+
+:root[data-theme="led"][data-color] :is(.led-scene-controls, .led-caption) {
+  color: #edf6e9;
+  background: #303f34;
+}
+
+:root[data-theme="led"][data-color="light"]
+  :is(.led-scene-controls, .led-caption) {
+  color: #334b37;
+  background: #dce5d6;
+}
+
+:root[data-theme="led"][data-color="light"] .led-caption > span:last-child {
+  color: #42563f;
+}
+
+:root[data-theme="led"][data-color="light"] .led-scene-controls button {
+  color: #364d3b;
+  background: #ecf2e6;
+  border-color: #83997e;
+}
+
+:root[data-theme="led"][data-color="light"]
+  .led-scene-controls
+  button[aria-pressed="true"] {
+  color: #f4faef;
+  background: #3b5d43;
+  border-color: #3b5d43;
+}
+
+:root[data-theme="led"][data-color="light"] .station-art {
+  background: linear-gradient(130deg, #cbdccf, #d7d4de);
+  color: #354d40;
+}
+
+/* Soft at night: molded slate, gentle highlights, and the same green LCD. */
+:root[data-theme="soft"][data-color="dark"]
+  :is(.soft-tuner-unit, .soft-speaker-unit, .soft-level-unit) {
+  background: var(--material);
+  border-color: #526571;
+  box-shadow:
+    10px 10px 24px #17212bcc,
+    -10px -10px 24px #44566366,
+    inset 0 1px #b1cddd12;
+}
+
+:root[data-theme="soft"][data-color="dark"]
+  :is(
+    .soft-unit-header,
+    .soft-metadata p,
+    .soft-channel-slider,
+    .soft-speaker-unit > small,
+    .soft-unit-title,
+    .soft-volume-readout > span,
+    .soft-volume-slider,
+    .soft-stream-details > span
+  ) {
+  color: var(--muted);
+}
+
+:root[data-theme="soft"][data-color="dark"]
+  :is(
+    .soft-metadata h2,
+    .soft-speaker-unit > span,
+    .soft-stream-details strong
+  ) {
+  color: var(--ink);
+}
+
+:root[data-theme="soft"][data-color="dark"] .soft-volume-readout {
+  color: #c4dfbf;
+}
+
+:root[data-theme="soft"][data-color="dark"] .soft-circular-tuner {
+  background: linear-gradient(135deg, #2a3843, #364754);
+  box-shadow:
+    inset 3px 3px 7px #16242e99,
+    inset -2px -2px 5px #5a708055;
+}
+
+:root[data-theme="soft"][data-color="dark"] .soft-tick-ring {
+  background: repeating-conic-gradient(
+    from -3deg,
+    #b3c9d0aa 0 0.55deg,
+    transparent 0.55deg 3deg
+  );
+}
+
+:root[data-theme="soft"][data-color="dark"] .soft-dial {
+  border-color: #3c4d58;
+  color: #2f4931;
+  background: radial-gradient(circle at 35% 30%, #d7e5c4, #b1c99e);
+  box-shadow:
+    6px 6px 14px #16212bb3,
+    -6px -6px 14px #50657566,
+    inset 4px 5px 10px #33482b66,
+    inset -2px -2px 5px #f1ffd044;
+}
+
+:root[data-theme="soft"][data-color="dark"] .soft-channel-slider input {
+  background:
+    repeating-linear-gradient(90deg, #a3bbc02e 0 1px, transparent 1px 5px),
+    linear-gradient(#293640, #33434e);
+  border-color: #647985;
+  box-shadow: var(--field-shadow);
+}
+
+:root[data-theme="soft"][data-color="dark"]
+  .soft-channel-slider
+  input::-webkit-slider-thumb {
+  background: linear-gradient(90deg, #cad9df, #94a9b5);
+  border-color: #d6e2e6;
+  box-shadow: 2px 2px 5px #111e2a99;
+}
+
+:root[data-theme="soft"][data-color="dark"]
+  .soft-channel-slider
+  input::-moz-range-thumb {
+  background: #b8cbd4;
+  border-color: #d6e2e6;
+  box-shadow: 2px 2px 5px #111e2a99;
+}
+
+:root[data-theme="soft"][data-color="dark"] .soft-controls button {
+  background: var(--material);
+  border-color: #647a86;
+  color: #d3e4eb;
+  box-shadow: var(--material-shadow);
+}
+
+:root[data-theme="soft"][data-color="dark"]
+  .soft-controls
+  :is(.soft-play, button[aria-pressed="true"]) {
+  color: #c2e4b8;
+}
+
+:root[data-theme="soft"][data-color="dark"] .soft-controls .soft-play.active {
+  background: #304c3c;
+  border-color: #8eae91;
+  box-shadow:
+    inset 3px 3px 6px #142b21aa,
+    inset -3px -3px 6px #5f7d5e55;
+}
+
+:root[data-theme="soft"][data-color="dark"] .soft-perforations {
+  background: radial-gradient(
+      circle,
+      #0d202cb3 0.8px,
+      #79919b33 1.6px,
+      transparent 2.3px
+    )
+    0 0/6px 6px;
+  box-shadow: inset 2px 2px 7px #14233044;
+}
+
+:root[data-theme="soft"][data-color="dark"] .soft-stream-details {
+  border-color: #62798477;
+}
+
+:root[data-theme="soft"][data-color="dark"] .soft-volume-slider input {
+  accent-color: #b5dcaf;
+}
+
+:root[data-theme="soft"][data-color="dark"] .soft-stream-details i.connected {
+  background: #b5dcaf;
+}
+
+:root[data-theme="soft"][data-color="dark"] .station-art {
+  background: #405a48;
+  color: #e1edda;
+  box-shadow:
+    inset 2px 2px 5px #20332699,
+    inset -2px -2px 5px #72907144;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-color] .primary:hover {
+    background: color-mix(in srgb, var(--accent) 92%, var(--accent-ink));
+  }
+
+  :root[data-color]
+    :is(.icon-button:hover, .genre-filters button:not(.selected):hover) {
+    background-color: color-mix(in srgb, var(--ink) 8%, transparent);
+  }
+
+  :root[data-color] .station-card:hover {
+    border-color: var(--control-line);
+  }
+
+  :root[data-color] .station-card.tuned:hover {
+    border-color: var(--accent);
+  }
+
+  :root[data-color="light"] .night-play:hover {
+    background: #284d50 !important;
+  }
+
+  :root[data-theme="soft"][data-color="dark"] .soft-controls button:hover {
+    color: #d4efce;
+    border-color: #a7c5aa;
+  }
+}

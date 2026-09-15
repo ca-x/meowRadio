@@ -1,6 +1,6 @@
 {
   "name": "meowradio-web",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,9 +15,12 @@
     "@radix-ui/react-dialog": "^1.1.15",
     "@tanstack/react-query": "^5.90.0",
     "hls.js": "^1.6.15",
+    "i18next": "^26.4.2",
     "lucide-react": "^0.577.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-i18next": "^17.0.14",
+    "react-router-dom": "^7.18.3"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.3",
