@@ -78,7 +78,7 @@
   font-family: monospace;
   font-size: 10px;
   letter-spacing: 1.5px;
-  color: #686154;
+  color: #585246;
 }
 .receiver-core {
   display: grid;
@@ -211,7 +211,7 @@
   display: flex;
   justify-content: space-between;
   font-family: monospace;
-  color: #645e50;
+  color: #585246;
   font-size: 9px;
   letter-spacing: 1px;
   margin-bottom: 4px;
@@ -239,7 +239,7 @@
   bottom: -2px;
   transform: translateX(-50%);
   font-size: 8px;
-  color: #726a5b;
+  color: #585246;
   white-space: nowrap;
 }
 .receiver-controls {
@@ -260,7 +260,7 @@
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 2px;
-  color: #696151;
+  color: #585246;
 }
 .power-button {
   border: 1px solid #c7bca9;
@@ -322,7 +322,7 @@
 .transport > span {
   font-size: 9px;
   letter-spacing: 2px;
-  color: #686051;
+  color: #585246;
 }
 .volume-group {
   position: relative;
@@ -370,7 +370,7 @@
   gap: 5px;
   font-size: 9px;
   letter-spacing: 0.5px;
-  color: #635b4c;
+  color: #585246;
   line-height: 1.5;
   white-space: nowrap;
 }
@@ -390,7 +390,7 @@
   align-items: center;
   font-size: 8px;
   letter-spacing: 1px;
-  color: #71685b;
+  color: #585246;
   border-top: 1px solid #a99c7d55;
   padding-top: 12px;
 }

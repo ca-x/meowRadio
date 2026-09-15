@@ -8,7 +8,7 @@
 //! ```rust
 //! use radiobrowser::blocking::RadioBrowserAPI;
 //! use std::error::Error;
-//! 
+//!
 //! fn main() -> Result<(), Box<dyn Error>> {
 //!     let api = RadioBrowserAPI::new()?;
 //!     let servers = RadioBrowserAPI::get_default_servers()?;
@@ -20,14 +20,14 @@
 //!     Ok(())
 //! }
 //! ```
-//! 
+//!
 //! # Example async
 //! ```rust
 //! use std::error::Error;
 //! use futures::join;
 //! use radiobrowser::RadioBrowserAPI;
 //! use radiobrowser::StationOrder;
-//! 
+//!
 //! #[async_std::main]
 //! async fn main() -> Result<(), Box<dyn Error>> {
 //!     let mut api = RadioBrowserAPI::new().await?;
@@ -41,7 +41,7 @@
 //!         .send();
 //!     let config = api.get_server_config();
 //!     let (stations, config, countries, languages) = join!(stations, config, countries, languages);
-//! 
+//!
 //!     println!("Config: {:#?}", config?);
 //!     println!("Countries found: {}", countries?.len());
 //!     println!("Languages found: {}", languages?.len());

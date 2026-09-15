@@ -15,6 +15,9 @@ COPY --from=web /app/web/dist ./web/dist
 RUN cargo build --release --locked
 
 FROM debian:bookworm-slim
+LABEL org.opencontainers.image.source="https://github.com/ca-x/meowRadio" \
+      org.opencontainers.image.description="Self-hosted internet radio with personal presets" \
+      org.opencontainers.image.licenses="MIT"
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/* && useradd --uid 10001 --create-home meowradio && mkdir /data && chown meowradio:meowradio /data
 COPY --from=builder /app/target/release/meowradio /usr/local/bin/meowradio
 USER 10001:10001

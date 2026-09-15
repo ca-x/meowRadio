@@ -21,9 +21,9 @@ use log::trace;
 use hickory_resolver::{TokioResolver, proto::rr::{RecordType, RData}};
 
 /// RadioBrowser client for async communication
-/// 
+///
 /// It uses crate:async_std
-/// 
+///
 /// Example
 /// ```rust
 /// use std::error::Error;
