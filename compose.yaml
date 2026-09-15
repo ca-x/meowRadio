@@ -1,0 +1,20 @@
+services:
+  meowradio:
+    image: ghcr.io/ca-x/meowradio:latest
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      MEOW_DATABASE: /data/meowradio.db
+      MEOW_REGISTRATION: ${MEOW_REGISTRATION:-true}
+      MEOW_SECURE_COOKIE: ${MEOW_SECURE_COOKIE:-false}
+      MEOW_PROXY: ${MEOW_PROXY:-}
+      MEOW_RELAY: ${MEOW_RELAY:-true}
+      # Leave both unset for the first-run setup wizard.
+      # MEOW_INIT_USERNAME: ${MEOW_INIT_USERNAME}
+      # MEOW_INIT_PASSWORD: ${MEOW_INIT_PASSWORD}
+    volumes:
+      - radio-data:/data
+    restart: unless-stopped
+volumes:
+  radio-data:

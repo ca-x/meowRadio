@@ -1,0 +1,6 @@
+[advisories]
+# sqlx-mysql is resolved into Cargo.lock by sqlx's optional macro graph, but
+# is not built for any supported target: only SQLite features are enabled.
+# Verified with cargo tree --target all -i rsa; revisit on SQLx upgrade or
+# before enabling MySQL. Review date: 2026-12-15. No RSA code is shipped.
+ignore = ["RUSTSEC-2023-0071"]

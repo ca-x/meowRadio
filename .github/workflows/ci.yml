@@ -1,0 +1,80 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm --prefix web ci --ignore-scripts
+      - run: npm --prefix web audit --audit-level=high
+      - run: npm --prefix web test
+      - run: npm --prefix web run build
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.94.0
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo test --locked
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - run: cargo audit
+      - run: cargo build --release --locked
+      - name: Check embedded binary and environment initialization
+        shell: bash
+        run: |
+          export MEOW_DATABASE="$RUNNER_TEMP/smoke.db"
+          export MEOW_INIT_USERNAME=smokeadmin
+          export MEOW_INIT_PASSWORD="$(openssl rand -hex 24)"
+          echo "::add-mask::$MEOW_INIT_PASSWORD"
+          ./target/release/meowradio > "$RUNNER_TEMP/meowradio.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:3000/api/health; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3000/api/setup | python3 -c 'import json,sys; assert json.load(sys.stdin)["initialized"]'
+          curl -fsS http://127.0.0.1:3000/ | grep -q '/assets/'
+          ./target/release/meowradio --version
+  docker-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: meowradio:ci
+          cache-from: type=gha,scope=ci
+          cache-to: type=gha,scope=ci,mode=max
+      - name: Smoke test non-root container
+        run: |
+          docker run -d --name radio -p 3000:3000 meowradio:ci
+          trap 'docker logs radio; docker rm -f radio' EXIT
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:3000/api/health; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3000/api/setup | python3 -c 'import json,sys; assert not json.load(sys.stdin)["initialized"]'
+          curl -fsS http://127.0.0.1:3000/ | grep -q '/assets/'

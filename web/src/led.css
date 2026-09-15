@@ -1,0 +1,396 @@
+:root[data-theme="led"] {
+  --paper: #1b1d1c;
+  --accent: #a0efdb;
+  --muted: #b4b8b2;
+  --line: #ffffff21;
+  background: #151918;
+}
+[data-theme="led"] body {
+  background:
+    radial-gradient(ellipse at 0% 10%, #9fbdac13, transparent 60%), #151918;
+}
+[data-theme="led"] .modal {
+  background: #202422;
+}
+[data-theme="led"] .primary {
+  background: #a0efdb;
+  color: #10271e;
+}
+[data-theme="led"] .station-art {
+  background: linear-gradient(130deg, #34443d, #393642);
+  color: #c9e7db;
+}
+[data-theme="led"] .station-card.tuned {
+  border-color: #98d9bf;
+  background: #c0ead007;
+}
+.receiver-led {
+  background: linear-gradient(135deg, #2a302d, #232825);
+  border-radius: 16px;
+  border-color: #4a524b;
+  box-shadow:
+    inset 0 1px #ffffff0a,
+    0 15px 35px #0004;
+  padding: 22px 28px;
+}
+.receiver-led .night-receiver {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  column-gap: 28px;
+}
+.receiver-led .night-header,
+.receiver-led .night-wave,
+.receiver-led .night-ticks,
+.receiver-led .night-caption {
+  display: none;
+}
+.receiver-led .night-card {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  border-radius: 10px;
+  background: #141a17a6;
+  border-color: #68776a44;
+  padding: 28px 24px 14px;
+}
+.receiver-led .night-metadata > span {
+  color: #b4d7c5;
+}
+.receiver-led .night-metadata h2 {
+  color: #f1f5ed;
+}
+.receiver-led .night-volume {
+  color: #aec2b4;
+}
+.receiver-led .night-volume input {
+  accent-color: #a0efdb;
+}
+.receiver-led .night-volume .icon-button {
+  color: #a0efdb;
+}
+.receiver-led .night-play {
+  background: #c3e6d6 !important;
+  box-shadow:
+    inset 0 1px #fff9,
+    0 4px 12px #0005;
+}
+.receiver-led .night-small {
+  border-radius: 9px;
+  background: linear-gradient(#38433c, #28332b);
+  box-shadow:
+    inset 0 1px #ffffff14,
+    0 2px 4px #0004;
+  color: #cbdace;
+}
+.led-scene {
+  position: relative;
+  min-width: 0;
+  align-self: stretch;
+  border-radius: 10px;
+  overflow: hidden;
+  background: linear-gradient(
+    #515951 0%,
+    #414942 53%,
+    #737e6f 53%,
+    #697063 100%
+  );
+  box-shadow: inset 0 0 40px #11160f55;
+  border: 1px solid #74847155;
+}
+.led-scene-controls {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  color: #e0e7de;
+  font-family: "Space Mono", monospace;
+  font-size: 8px;
+  letter-spacing: 0.8px;
+  background: #1c251c22;
+}
+.led-scene-controls > div {
+  display: flex;
+  gap: 3px;
+}
+.led-scene-controls button {
+  width: 40px;
+  min-height: 36px;
+  background: #17201a55;
+  color: #d3dfd3;
+  border: 1px solid #d6e7d025;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 10px;
+}
+.led-scene-controls button[aria-pressed="true"] {
+  background: #d8ead3;
+  color: #24352b;
+  border-color: #e5f3e0;
+}
+.led-stage {
+  height: 270px;
+  position: relative;
+  perspective: 900px;
+  isolation: isolate;
+}
+.led-cube {
+  --side: 156px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--side);
+  height: var(--side);
+  margin: calc(var(--side) / -2);
+  transform-style: preserve-3d;
+  transform: rotateX(-23deg) rotateY(-36deg);
+  transition: transform 240ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.led-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 5px;
+  padding: 22px;
+  background: linear-gradient(140deg, #29292a, #141817);
+  box-shadow: inset 0 0 0 1px #ffffff08;
+  backface-visibility: hidden;
+}
+.led-front {
+  transform: translateZ(calc(var(--side) / 2));
+  --led-color: #29ffe5;
+}
+.led-right {
+  transform: rotateY(90deg) translateZ(calc(var(--side) / 2));
+  background: linear-gradient(130deg, #222126, #302b30);
+  --led-color: #fb65ed;
+}
+.led-top {
+  transform: rotateX(90deg) translateZ(calc(var(--side) / 2));
+  background: linear-gradient(160deg, #33383a, #252a2b);
+  --led-color: #e2efff;
+}
+.led-pixel {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  border-radius: 1px;
+  background: linear-gradient(
+    #40473f 0 20%,
+    #202921 20% 40%,
+    #40473f 40% 60%,
+    #202921 60% 80%,
+    #3e483e 80%
+  );
+  box-shadow:
+    inset 0 0 0 1px #111a14,
+    1px 2px 2px #0005;
+  cursor: crosshair;
+}
+.led-pixel::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  background: var(--led-color);
+  opacity: 0;
+  box-shadow:
+    0 0 7px var(--led-color),
+    0 0 14px color-mix(in srgb, var(--led-color), transparent 55%);
+  transition: opacity 1100ms ease-out;
+  border-radius: 1px;
+}
+.led-pixel.lit::after {
+  opacity: 0.8;
+}
+.led-pixel b {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 2px,
+    #161c1922 2px 3px
+  );
+  pointer-events: none;
+}
+.led-floor {
+  position: absolute;
+  left: 22%;
+  right: 20%;
+  bottom: 6px;
+  height: 33px;
+  background: #111b17aa;
+  border-radius: 50%;
+  filter: blur(13px);
+  transform: skewX(-20deg);
+}
+.led-floor-light {
+  position: absolute;
+  bottom: -12px;
+  left: 8%;
+  right: 8%;
+  height: 95px;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 35% 45%, #29ffe539, transparent 55%),
+    radial-gradient(ellipse at 72% 45%, #fb65ed39, transparent 55%);
+  filter: blur(14px);
+  opacity: 0.6;
+}
+.is-playing .led-floor-light {
+  opacity: 1;
+}
+.led-caption {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  color: #edf6e9;
+  font-size: 9px;
+  background: #16201a44;
+  letter-spacing: 0.5px;
+}
+.led-caption > span:first-child {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #c8d0c3;
+}
+.led-caption > .active:first-child {
+  background: #70ffcf;
+  box-shadow: 0 0 6px #70ffcf99;
+}
+.led-caption > span:last-child {
+  margin-left: auto;
+  font-size: 7px;
+  color: #e2eddf;
+  font-family: monospace;
+}
+.view-2d .led-cube {
+  transform: rotateX(0deg) rotateY(0deg);
+}
+.view-2d .led-right,
+.view-2d .led-top {
+  visibility: hidden;
+}
+.view-2d .led-front {
+  transform: none;
+  border-radius: 4px;
+}
+.view-2d .led-floor {
+  opacity: 0.4;
+}
+.view-2d .led-floor-light {
+  opacity: 0.25;
+}
+@media (hover: hover) and (pointer: fine) {
+  .led-pixel:hover::after {
+    opacity: 1;
+    transition: none;
+  }
+  .led-scene:has(.led-pixel:hover) .led-floor-light {
+    opacity: 1;
+  }
+}
+@media (max-width: 850px) {
+  .receiver-led {
+    padding: 18px;
+  }
+  .receiver-led .night-receiver {
+    column-gap: 18px;
+  }
+  .led-cube {
+    --side: 136px;
+  }
+  .led-face {
+    gap: 4px;
+    padding: 18px;
+  }
+  .led-stage {
+    height: 250px;
+  }
+  .led-scene-controls {
+    padding: 8px 10px;
+  }
+  .led-scene-controls > span {
+    max-width: 95px;
+    line-height: 1.8;
+  }
+  .led-caption > span:last-child {
+    display: none;
+  }
+  .receiver-led .night-card {
+    padding: 23px 20px 12px;
+  }
+}
+@media (max-width: 640px) {
+  .receiver-led {
+    padding: 14px;
+    border-radius: 18px;
+  }
+  .receiver-led .night-receiver {
+    display: flex;
+    gap: 16px;
+  }
+  .led-scene {
+    width: 100%;
+  }
+  .led-cube {
+    --side: 142px;
+  }
+  .led-stage {
+    height: 264px;
+  }
+  .led-face {
+    gap: 4px;
+    padding: 20px;
+  }
+  .led-scene-controls {
+    padding: 8px 12px;
+  }
+  .led-scene-controls > span {
+    max-width: none;
+    font-size: 8px;
+  }
+  .led-scene-controls button {
+    min-height: 44px;
+    width: 44px;
+  }
+  .led-caption {
+    font-size: 9px;
+    padding: 11px 12px;
+  }
+  .receiver-led .night-card {
+    padding: 24px 21px 10px;
+    border-radius: 12px;
+  }
+  .led-caption > span:last-child {
+    display: inline;
+    font-size: 7px;
+  }
+  .theme-options {
+    gap: 8px;
+  }
+  .theme-options label {
+    padding: 7px;
+  }
+  .theme-options strong {
+    font-size: 11px;
+  }
+  .theme-options small {
+    font-size: 9px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .led-cube,
+  .led-pixel::after {
+    transition: none;
+  }
+}
+.led-scene:has(button:focus-visible) .led-cube {
+  transition: none;
+}
