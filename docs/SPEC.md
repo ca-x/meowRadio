@@ -13,7 +13,7 @@ Self-hosted multi-user internet radio. User request authorizes implementation an
 | delivery | Embedded UI, Docker, release archives, GitHub Actions | all |
 
 ## Decisions
-Rust/Axum + SQLx SQLite (WAL, foreign keys, migrations); radiobrowser crate for discovery/API models/client. React/TypeScript/Vite, Radix UI primitives and TanStack Query. No external runtime frontend server. Public browsing, opt-in local accounts. Session cookies are HttpOnly/SameSite Strict with hashed random tokens stored in SQLite. Registration can be disabled. Proxy credentials are deployment configuration, never browser-visible. Direct audio is default; authenticated relay is optional and validates/pins public destination IPs on every redirect. HLS plays directly using hls.js; relay supports continuous audio only.
+Rust/Axum + SQLx SQLite (WAL, foreign keys, migrations); radiobrowser crate for discovery/API models/client. React/TypeScript/Vite, Radix UI primitives and TanStack Query. No external runtime frontend server. Public browsing, opt-in local accounts. Session cookies are HttpOnly/SameSite Strict with hashed random tokens stored in SQLite. Registration can be disabled. Proxy credentials are deployment configuration, never browser-visible. Direct audio is default; authenticated relay is optional and validates/pins public destination IPs on every redirect. HLS uses native playback or lazy-loaded hls.js, directly or via authenticated signed-resource relay.
 
 Visual direction: walnut cabinet, brushed aluminum fascia, amber LCD, physical power button and volume dial; responsive down to 375px, keyboard controls, reduced motion, Chinese UI. Scale marks are station positions, not fictional FM frequencies.
 
@@ -44,3 +44,10 @@ Fourth theme: user-provided Dribbble shot 11629433, “云白拟态”: cloud-wh
 Latest user constraints: Chinese product name 阿喵收音机. Login/registration must use standalone /login, never an authentication modal. Home must remain restrained: a single filter trigger with active count, country/language/tag/sort inside a Radix dialog (bottom sheet on mobile), draft edits apply explicitly; advanced audio options collapsed. Directory browsing works with an empty keyword. Add authenticated fixed-target proxy connectivity test with latency and a per-station proxy-play icon; ordinary station clicks play directly.
 
 Final requested capabilities: simplified Chinese/English UI with persistent preference, independently selectable light/dark modes for each of the four skins, and a theme-matched clock sleep timer with draggable hour/minute hands plus keyboard/numeric alternatives. Countdown uses a wall-clock deadline and survives station/style/login transitions; configurable emphasis lead times off/10s/30s/60s/300s with restrained animation and reduced-motion support. Update all README screenshots and publish a new version tag after checks.
+
+
+## v0.1.2 交互修订
+
+首页顶栏提供中文/English 和浅色/暗色快捷切换，设置保留四种收音机外观、连接方式与版本。首页导航保留音频实例与当前筛选；浏览状态、页码及默认中转方式保存在本浏览器。HTTP HLS 可通过认证中转播放，所有子资源维持签名与公共目的地址检查。
+
+宣传文字使用 TransientCopy：首次进入可见区域淡入 180ms、停留 1.5 秒、淡出 200ms，保留布局位置，重渲染不重复；减少动态效果时缩短透明度过渡。功能说明、错误与播放状态不自动隐藏。四种外观使用播放状态动效，仅实际播放且页面可见、音量非零时运动，不伪造频谱。LazyCat 控制栏能力仅在受支持 WebShell 环境启用。

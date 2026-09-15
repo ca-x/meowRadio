@@ -2,6 +2,10 @@ import { tr } from "./i18n";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import type Hls from "hls.js";
+import PlaybackVisual from "./PlaybackVisual";
+import TransientCopy from "./TransientCopy";
+import useLazycatControls from "./useLazycatControls";
+import { isHls } from "./playback";
 import LedScene from "./LedScene";
 import SleepTimer from "./SleepTimer";
 import SoftReceiver from "./SoftReceiver";
@@ -13,7 +17,6 @@ import {
   SkipForward,
   Volume2,
   Heart,
-  Radio,
   LoaderCircle,
 } from "lucide-react";
 import type { Station } from "./api";
@@ -28,6 +31,7 @@ type Props = {
   saved: boolean;
   onSave: () => void;
   selection: number;
+  onRelayAuthRequired?: () => void;
 };
 export default function Player({
   active = true,
@@ -39,8 +43,17 @@ export default function Player({
   saved,
   onSave,
   selection,
+  onRelayAuthRequired,
 }: Props) {
   useTranslation();
+  const authRequired = useRef(onRelayAuthRequired);
+  authRequired.current = onRelayAuthRequired;
+  const [pageVisible, setPageVisible] = useState(!document.hidden);
+  useEffect(() => {
+    const update = () => setPageVisible(!document.hidden);
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, []);
   const audio = useRef<HTMLAudioElement>(null);
   const [status, setStatus] = useState<
     "idle" | "loading" | "playing" | "paused" | "error"
@@ -90,11 +103,6 @@ export default function Player({
       setStatus("error");
       return;
     }
-    if (relay && station.hls) {
-      setError("HLS 电台需要在连接设置中切换为直连收听。");
-      setStatus("error");
-      return;
-    }
     if (!relay && location.protocol === "https:" && url.startsWith("http:")) {
       setError("此电台使用 HTTP，请在连接设置中启用服务端中转。");
       setStatus("error");
@@ -117,8 +125,12 @@ export default function Player({
         }
       });
     };
+    const source = relay ? `/api/stream/${station.id}` : url;
     let hls: Hls | undefined;
-    if (station.hls && !element.canPlayType("application/vnd.apple.mpegurl")) {
+    if (
+      isHls(station) &&
+      !element.canPlayType("application/vnd.apple.mpegurl")
+    ) {
       void import("hls.js")
         .then(({ default: HlsPlayer }) => {
           if (attempt.current !== generation) return;
@@ -128,7 +140,7 @@ export default function Player({
             return;
           }
           hls = new HlsPlayer();
-          hls.loadSource(url);
+          hls.loadSource(source);
           hls.attachMedia(element);
           hls.on(HlsPlayer.Events.MANIFEST_PARSED, play);
           hls.on(HlsPlayer.Events.ERROR, (_event, data) => {
@@ -139,7 +151,21 @@ export default function Player({
             ) {
               wantsPlayback.current = false;
               setStatus("error");
-              setError("电台连接中断，请换台或重试。");
+              if (relay && data.response?.code === 401) {
+                setError("请先登录");
+                authRequired.current?.();
+              } else {
+                let message = "电台连接中断，请换台或重试。";
+                if (relay && typeof data.response?.data === "string") {
+                  try {
+                    const body = JSON.parse(data.response.data);
+                    if (typeof body.error === "string") message = body.error;
+                  } catch {
+                    /* not a JSON error */
+                  }
+                }
+                setError(message);
+              }
             }
           });
         })
@@ -150,7 +176,7 @@ export default function Player({
           }
         });
     } else {
-      element.src = relay ? `/api/stream/${station.id}` : url;
+      element.src = source;
       play();
     }
     void api(`/stations/${station.id}/click`, "POST").catch(() => {});
@@ -213,6 +239,15 @@ export default function Player({
         ],
       );
   };
+  useLazycatControls({
+    station,
+    status,
+    onPlay: toggle,
+    onPause: toggle,
+    onNext: () => next(1),
+    onPrevious: () => next(-1),
+  });
+  const moving = status === "playing" && active && pageVisible;
   return (
     <section
       className={`receiver ${theme === "vitreous" ? "receiver-vitreous" : theme === "led" ? "receiver-vitreous receiver-led" : theme === "soft" ? "receiver-soft" : ""}`}
@@ -224,6 +259,7 @@ export default function Player({
           stations={stations}
           playing={status === "playing"}
           loading={status === "loading"}
+          moving={moving}
           volume={volume}
           saved={saved}
           onVolume={setVolume}
@@ -235,7 +271,12 @@ export default function Player({
       )}
       <div className="night-receiver">
         {theme === "led" && (
-          <LedScene playing={status === "playing"} saved={saved} />
+          <LedScene
+            playing={status === "playing"}
+            saved={saved}
+            moving={moving}
+            volume={volume}
+          />
         )}
         <div className="night-header">
           <span
@@ -256,25 +297,14 @@ export default function Player({
             </span>
           </div>
         </div>
-        <div
-          className={`night-wave ${status === "playing" ? "playing" : ""}`}
-          aria-hidden="true"
-        >
-          {Array.from(
-            {
-              length: 32,
-            },
-            (_, i) => (
-              <i
-                key={i}
-                style={{
-                  height: `${24 + Math.sin(i * 0.7) ** 2 * 100}px`,
-                  animationDelay: `${(i % 7) * -0.19}s`,
-                }}
-              />
-            ),
-          )}
-        </div>
+        {theme === "vitreous" && (
+          <PlaybackVisual
+            variant="wave"
+            running={moving}
+            volume={volume}
+            className="night-wave"
+          />
+        )}
         <div className="night-card">
           <div className="night-metadata">
             <p>
@@ -283,13 +313,17 @@ export default function Player({
                 ? "NOW ON AIR"
                 : status === "loading"
                   ? "TUNING IN"
-                  : "YOUR NEXT FREQUENCY"}
+                  : tr("待机")}
             </p>
-            <h2>{station?.name || tr("世界正在发声")}</h2>
+            <h2>{station?.name || tr("请选择电台")}</h2>
             <span>
-              {station
-                ? `${station.country || tr("世界电台")} · ${station.tags.split(",")[0] || "Radio"}`
-                : tr("在夜色里，遇见一个好声音。")}
+              {station ? (
+                `${station.country || tr("世界电台")} · ${station.tags.split(",")[0] || "Radio"}`
+              ) : (
+                <TransientCopy>
+                  {tr("在夜色里，遇见一个好声音。")}
+                </TransientCopy>
+              )}
             </span>
           </div>
           <div className="night-controls">
@@ -397,14 +431,23 @@ export default function Player({
                 </span>
                 <span>INTERNET RADIO</span>
               </div>
-              <h2 title={station?.name}>
-                {station?.name || tr("世界正在发声")}
-              </h2>
+              <h2 title={station?.name}>{station?.name || tr("请选择电台")}</h2>
               <p>
-                {station
-                  ? `${station.country || tr("世界电台")} · ${station.codec || "AUDIO"}${station.bitrate ? ` / ${station.bitrate} KBPS` : ""}`
-                  : tr("挑一个频道，把时间调慢一点。")}
+                {station ? (
+                  `${station.country || tr("世界电台")} · ${station.codec || "AUDIO"}${station.bitrate ? ` / ${station.bitrate} KBPS` : ""}`
+                ) : (
+                  <TransientCopy>
+                    {tr("挑一个频道，把时间调慢一点。")}
+                  </TransientCopy>
+                )}
               </p>
+              {theme === "walnut" && (
+                <PlaybackVisual
+                  variant="meter"
+                  running={moving}
+                  volume={volume}
+                />
+              )}
               <div className="lcd-bottom">
                 <span>
                   {status === "playing"
@@ -413,7 +456,7 @@ export default function Player({
                       ? tr("正在连接信号…")
                       : status === "error"
                         ? tr("信号中断")
-                        : tr("等待你的下一次调频")}
+                        : tr("待机")}
                 </span>
                 <span>
                   {String(Math.floor(elapsed / 60)).padStart(2, "0")}:
@@ -486,7 +529,7 @@ export default function Player({
                 <SkipForward size={19} />
               </button>
             </div>
-            <span>{tr("你的节奏，你的频道")}</span>
+            <TransientCopy>{tr("你的节奏，你的频道")}</TransientCopy>
           </div>
           <div className="volume-group">
             <div
@@ -514,10 +557,7 @@ export default function Player({
           </div>
         </div>
         <div className="receiver-foot">
-          <span>
-            <Radio size={12} /> HIGH FIDELITY · LOW DISTRACTION
-          </span>
-          <span>{tr("拾起声音，放下匆忙。")}</span>
+          <TransientCopy>{tr("拾起声音，放下匆忙。")}</TransientCopy>
         </div>
       </div>
       <span className="screw screw-bl" aria-hidden="true" />

@@ -13,3 +13,10 @@ Brand: 阿喵收音机 (meowRadio technical identifier), original logo from issu
 
 ## Appearance and timed shutdown
 Chinese/English language and light/dark color mode are independent settings, kept inside the existing settings panel. All four skins have both palettes; material and accent follow the skin. Sleep timer is a clock with two draggable hands, numeric/keyboard alternatives, and a single main-view entry. Final countdown emphasis appears only at its configured threshold, uses stable tabular digits and a gentle decorative halo, and is static for reduced-motion users. No repeated screen-reader announcement each second.
+
+
+## v0.1.2 交互修订
+
+首页顶栏提供中文/English 和浅色/暗色快捷切换，设置保留四种收音机外观、连接方式与版本。首页导航保留音频实例与当前筛选；浏览状态、页码及默认中转方式保存在本浏览器。HTTP HLS 可通过认证中转播放，所有子资源维持签名与公共目的地址检查。
+
+宣传文字使用 TransientCopy：首次进入可见区域淡入 180ms、停留 1.5 秒、淡出 200ms，保留布局位置，重渲染不重复；减少动态效果时缩短透明度过渡。功能说明、错误与播放状态不自动隐藏。四种外观使用播放状态动效，仅实际播放且页面可见、音量非零时运动，不伪造频谱。LazyCat 控制栏能力仅在受支持 WebShell 环境启用。

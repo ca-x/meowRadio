@@ -1539,3 +1539,37 @@ p {
 .intro h1 {
   text-wrap: balance;
 }
+
+@media (max-width: 640px) {
+  .site-header nav {
+    gap: 2px;
+  }
+  .site-header .brand {
+    flex-shrink: 0;
+  }
+  .site-header .brand > span {
+    white-space: nowrap;
+    font-size: 18px;
+  }
+  .site-header .account-button {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+  .site-header .account-button span {
+    display: none;
+  }
+}
+@media (max-width: 360px) {
+  .site-header {
+    height: auto;
+    min-height: 100px;
+    flex-wrap: wrap;
+    padding: 10px 0;
+    gap: 4px;
+  }
+  .site-header nav {
+    margin-left: auto;
+  }
+}

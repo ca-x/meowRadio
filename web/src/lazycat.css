@@ -1,0 +1,8 @@
+/* The native iOS close control floats over the page's upper right corner. */
+:root[data-lazycat-webshell="ios"] .site-header {
+  padding-top: var(--lzc-client-safearea-view-top, 0px);
+  padding-right: calc(
+    var(--lzc-client-safearea-view-right, 0px) +
+      var(--lzc-client-safearea-view-width, 0px)
+  );
+}

@@ -1,3 +1,4 @@
+import TransientCopy from "./TransientCopy";
 import i18n, { tr, setLanguage } from "./i18n";
 import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -20,7 +21,8 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Headphones,
+  Sun,
+  Moon,
   Signal,
   RotateCw,
   Check,
@@ -31,7 +33,9 @@ import type { Station, User, Settings } from "./api";
 import Player from "./Player";
 import AccountForm from "./AccountForm";
 import useTheme from "./useTheme";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { requiresRelay } from "./playback";
+import { readBrowseState, saveBrowseState } from "./browseState";
 import StationSearch from "./StationSearch";
 import StationFilters, { DEFAULT_FILTERS, filterCount } from "./StationFilters";
 import type { Filters } from "./StationFilters";
@@ -103,6 +107,7 @@ export default function App({ active = true }: { active?: boolean }) {
     station: Station;
     saved?: boolean;
     expectedUserId?: number;
+    remember?: boolean;
   } | null>(null);
   useEffect(() => {
     if (!active) {
@@ -111,25 +116,29 @@ export default function App({ active = true }: { active?: boolean }) {
     }
   }, [active]);
   const [tab, setTab] = useState("discover");
-  const [search, setSearch] = useState("");
-  const [query, setQuery] = useState("");
-  const [filters, setFilters] = useState<Filters>({
-    ...DEFAULT_FILTERS,
-  });
+  const [savedBrowse] = useState(readBrowseState);
+  const [search, setSearch] = useState(savedBrowse.query);
+  const [query, setQuery] = useState(savedBrowse.query);
+  const [filters, setFilters] = useState<Filters>(savedBrowse.filters);
   const { tag, country, language, sort, codec, bitrateMin } = filters;
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(savedBrowse.page);
+  useEffect(
+    () => saveBrowseState({ query, filters, page }),
+    [query, filters, page],
+  );
   const [selected, setSelected] = useState<Station | null>(null);
   const [selection, setSelection] = useState(0);
   const [notice, setNotice] = useState<
     string | { key: string; values: Record<string, unknown> }
   >("");
-  const [relay, setRelay] = useState(() => {
+  const [relayPreference, setRelayPreference] = useState(() => {
     try {
       return localStorage.getItem("meow-relay") === "true";
     } catch {
       return false;
     }
   });
+  const [relay, setRelay] = useState(relayPreference);
   const commitSearch = useCallback((value: string) => {
     setQuery(value);
     setPage(0);
@@ -142,11 +151,11 @@ export default function App({ active = true }: { active?: boolean }) {
   };
   useEffect(() => {
     try {
-      localStorage.setItem("meow-relay", String(relay));
+      localStorage.setItem("meow-relay", String(relayPreference));
     } catch {
       /* no storage */
     }
-  }, [relay]);
+  }, [relayPreference]);
   useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => setNotice(""), 5000);
@@ -249,7 +258,7 @@ export default function App({ active = true }: { active?: boolean }) {
     });
     setAccountOpen(false);
     setNotice({
-      key: "欢迎，{{v0}}。你的频道已就位。",
+      key: "已登录：{{v0}}",
       values: {
         v0: u.username,
       },
@@ -270,37 +279,47 @@ export default function App({ active = true }: { active?: boolean }) {
       setNotice((e as Error).message);
     }
   };
-  const choose = (s: Station) => {
-    setSelected(s);
+  const selectStation = (station: Station) => {
+    setSelected(station);
     setSelection((v) => v + 1);
   };
-  const chooseDirect = (station: Station) => {
-    setRelay(false);
-    choose(station);
-  };
-  const chooseProxy = (station: Station) => {
+  const chooseProxy = (station: Station, remember = false) => {
     if (!me.data) {
-      pendingAction.current = {
-        kind: "proxy",
-        station,
-      };
+      pendingAction.current = { kind: "proxy", station, remember };
       navigate("/login");
       return;
     }
     if (!settings.data?.relay_enabled) {
-      setNotice("服务端未启用代理收听");
+      setNotice("服务端中转未启用，请联系管理员");
       return;
     }
-    if (station.hls) {
-      setNotice("HLS 电台请使用普通播放按钮直连收听");
-      return;
-    }
-    if (settings.data.proxy_configured && station.url.startsWith("https:")) {
-      setNotice("当前出站代理中转仅支持 HTTP 音源；此 HTTPS 电台请直连收听");
-      return;
-    }
+    if (remember) setRelayPreference(true);
     setRelay(true);
-    choose(station);
+    selectStation(station);
+  };
+  const choose = (station: Station) => {
+    if (relayPreference || requiresRelay(station)) {
+      chooseProxy(station);
+      return;
+    }
+    setRelay(false);
+    selectStation(station);
+  };
+  const changePlaybackPreference = (value: boolean) => {
+    setRelayPreference(value);
+    if (selected) {
+      if (value || requiresRelay(selected)) chooseProxy(selected);
+      else {
+        setRelay(false);
+        selectStation(selected);
+      }
+    }
+  };
+  const relayAuthRequired = () => {
+    if (!selected) return;
+    pendingAction.current = { kind: "proxy", station: selected };
+    cache.setQueryData(["me"], null);
+    navigate("/login");
   };
   useEffect(() => {
     if (!me.data || !settings.data || !active || !pendingAction.current) return;
@@ -319,7 +338,7 @@ export default function App({ active = true }: { active?: boolean }) {
         saved: action.saved ?? false,
         userId: me.data.id,
       });
-    else chooseProxy(action.station);
+    else chooseProxy(action.station, action.remember);
   }, [me.data, settings.data, active]);
   const visible =
     tab === "favorites"
@@ -334,7 +353,7 @@ export default function App({ active = true }: { active?: boolean }) {
   if (setupNeeded)
     return (
       <div className="setup-page">
-        <a className="brand" href="/">
+        <Link className="brand" to="/">
           <img
             className="brand-logo"
             src="/branding/logo-256.webp"
@@ -346,7 +365,7 @@ export default function App({ active = true }: { active?: boolean }) {
             {tr("阿喵")}
             <span>{tr("收音机")}</span>
           </span>
-        </a>
+        </Link>
         <main className="setup-card">
           <div className="setup-icon">
             <img
@@ -356,12 +375,8 @@ export default function App({ active = true }: { active?: boolean }) {
               alt={tr("阿喵收音机 Logo")}
             />
           </div>
-          <p className="eyebrow">{tr("第一次见面，你好。")}</p>
-          <h1>
-            {tr("让这台收音机")}
-            <br />
-            {tr("成为你的。")}
-          </h1>
+          <h1>{tr("初始化设置")}</h1>
+          <TransientCopy>{tr("第一次见面，你好。")}</TransientCopy>
           <p>
             {tr(
               "创建首个管理员账号，完成初始化。之后，每个人都可以拥有自己的收藏频道。",
@@ -382,13 +397,17 @@ export default function App({ active = true }: { active?: boolean }) {
             )}
           </p>
         </main>
-        <footer>{tr("阿喵收音机 · 一个属于你的声音角落")}</footer>
+        <footer>
+          <TransientCopy>
+            {tr("阿喵收音机 · 一个属于你的声音角落")}
+          </TransientCopy>
+        </footer>
       </div>
     );
   return (
     <div className="app-shell">
       <header className="site-header">
-        <a className="brand" href="/" aria-label={tr("阿喵收音机首页")}>
+        <Link className="brand" to="/" aria-label={tr("阿喵收音机首页")}>
           <img
             className="brand-logo"
             src="/branding/logo-256.webp"
@@ -400,9 +419,33 @@ export default function App({ active = true }: { active?: boolean }) {
             {tr("阿喵")}
             <span>{tr("收音机")}</span>
           </span>
-          <span className="brand-note">{tr("把世界，调到喜欢的频道。")}</span>
-        </a>
+        </Link>
         <nav aria-label={tr("账号与设置")}>
+          <div className="home-appearance">
+            <label className="home-language">
+              <span className="sr-only">{tr("语言")}</span>
+              <select
+                aria-label={tr("语言")}
+                value={i18n.language === "en" ? "en" : "zh"}
+                onChange={(e) => setLanguage(e.target.value as "zh" | "en")}
+              >
+                <option value="zh">中文</option>
+                <option value="en">English</option>
+              </select>
+            </label>
+            <button
+              className="icon-button"
+              onClick={() =>
+                setColorMode(colorMode === "dark" ? "light" : "dark")
+              }
+              aria-label={
+                colorMode === "dark" ? tr("切换浅色") : tr("切换暗色")
+              }
+              title={colorMode === "dark" ? tr("切换浅色") : tr("切换暗色")}
+            >
+              {colorMode === "dark" ? <Sun size={19} /> : <Moon size={19} />}
+            </button>
+          </div>
           <button
             className="icon-button"
             onClick={() => setSettingsOpen(true)}
@@ -412,6 +455,7 @@ export default function App({ active = true }: { active?: boolean }) {
           </button>
           <button
             className="account-button"
+            aria-label={me.data?.username || tr("登录 / 注册")}
             onClick={() =>
               me.data ? setAccountOpen(true) : navigate("/login")
             }
@@ -421,21 +465,11 @@ export default function App({ active = true }: { active?: boolean }) {
           </button>
         </nav>
       </header>
-      <main>
-        <div className="intro">
-          <div>
-            <p className="eyebrow">A LITTLE RADIO. A WHOLE WORLD.</p>
-            <h1>
-              {tr("好声音，慢慢听")}
-              <span>{i18n.language === "en" ? "." : "。"}</span>
-            </h1>
-            <p>{tr("从某座城市的清晨，到另一片海岸的深夜。")}</p>
-          </div>
-          <span className="intro-aside">
-            <Headphones size={17} />
-            {tr("留一点时间给耳朵")}
-          </span>
-        </div>
+      <main aria-label={tr("收听首页")}>
+        <h1 className="sr-only">{tr("阿喵收音机")}</h1>
+        <TransientCopy className="home-greeting">
+          {tr("把世界，调到喜欢的频道。")}
+        </TransientCopy>
         {(setup.isError || me.isError) && (
           <div className="error-panel" role="alert">
             {tr("服务连接失败。")}
@@ -455,7 +489,8 @@ export default function App({ active = true }: { active?: boolean }) {
           station={selected}
           stations={visible}
           onSelect={choose}
-          relay={relay && !!me.data}
+          relay={relay}
+          onRelayAuthRequired={relayAuthRequired}
           saved={!!selected && savedIds.has(selected.id)}
           onSave={() => selected && toggleSave(selected)}
           selection={selection}
@@ -527,7 +562,7 @@ export default function App({ active = true }: { active?: boolean }) {
           {tab === "favorites" && !me.data ? (
             <div className="empty-state">
               <Heart size={30} />
-              <h3>{tr("为喜欢的声音留个位置")}</h3>
+              <h3>{tr("登录后查看收藏")}</h3>
               <p>{tr("登录后，收藏会跟随你的账号保存。")}</p>
               <button
                 className="primary"
@@ -563,7 +598,7 @@ export default function App({ active = true }: { active?: boolean }) {
           ) : currentQuery.isError ? (
             <div className="empty-state" role="alert">
               <Signal size={30} />
-              <h3>{tr("信号暂时没有到达")}</h3>
+              <h3>{tr("电台加载失败")}</h3>
               <p>{tr(currentQuery.error.message)}</p>
               <button
                 className="primary"
@@ -579,13 +614,13 @@ export default function App({ active = true }: { active?: boolean }) {
               <h3>
                 {tab === "favorites"
                   ? tr("还没有收藏的频道")
-                  : tr("没有找到这个声音")}
+                  : tr("没有找到电台")}
               </h3>
               <p>
                 {tab === "favorites"
                   ? query
                     ? tr("收藏里没有匹配的电台，可以到全部电台中继续搜索。")
-                    : tr("在电台旁点一下爱心，把喜欢的声音留下来。")
+                    : tr("点击电台旁的爱心即可收藏。")
                   : filterCount(filters) > 0
                     ? tr(
                         "当前关键词和筛选条件没有同时匹配的电台，试试放宽国家或分类。",
@@ -636,7 +671,7 @@ export default function App({ active = true }: { active?: boolean }) {
                 >
                   <button
                     className="station-play"
-                    onClick={() => chooseDirect(s)}
+                    onClick={() => choose(s)}
                     aria-label={tr("收听 {{v0}}", {
                       v0: s.name,
                     })}
@@ -669,7 +704,7 @@ export default function App({ active = true }: { active?: boolean }) {
                       })}
                       aria-pressed={s.id === selected?.id && relay}
                       title={tr("通过服务端收听")}
-                      onClick={() => chooseProxy(s)}
+                      onClick={() => chooseProxy(s, true)}
                     >
                       <Cable size={18} />
                     </button>
@@ -694,7 +729,7 @@ export default function App({ active = true }: { active?: boolean }) {
             <div className="pagination">
               <span>
                 {stations.isFetching
-                  ? tr("正在寻找声音…")
+                  ? tr("正在加载电台")
                   : tr("第 {{v0}} 页 · {{v1}} 个频道", {
                       v0: page + 1,
                       v1: visible.length,
@@ -725,18 +760,6 @@ export default function App({ active = true }: { active?: boolean }) {
         </section>
       </main>
       <footer className="site-footer">
-        <span>
-          <img
-            className="footer-logo"
-            src="/branding/logo-256.webp"
-            width="22"
-            height="22"
-            alt=""
-          />{" "}
-          {tr("阿喵收音机")}
-          <span className="footer-dot">·</span>{" "}
-          {tr("为每一种心情，留一个频道。")}
-        </span>
         <a
           href="https://www.radio-browser.info/"
           target="_blank"
@@ -752,7 +775,7 @@ export default function App({ active = true }: { active?: boolean }) {
         title={tr("我的收音机")}
         description={
           me.data
-            ? tr("{{v0}} · {{v1}}，收藏只属于你。", {
+            ? tr("{{v0}} · {{v1}}", {
                 v0: me.data.username,
                 v1: me.data.role === "admin" ? tr("管理员") : tr("听众"),
               })
@@ -778,41 +801,8 @@ export default function App({ active = true }: { active?: boolean }) {
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
         title={tr("外观与连接")}
-        description={tr("让收音机成为你喜欢的样子。")}
+        description={tr("收音机外观与播放方式。")}
       >
-        <div className="appearance-settings">
-          <label>
-            {tr("语言")}
-            <select
-              value={i18n.language === "en" ? "en" : "zh"}
-              onChange={(e) => setLanguage(e.target.value as "zh" | "en")}
-            >
-              <option value="zh">简体中文</option>
-              <option value="en">English</option>
-            </select>
-          </label>
-          <div>
-            <span>{tr("颜色")}</span>
-            <div
-              className="color-mode-buttons"
-              role="group"
-              aria-label={tr("颜色")}
-            >
-              <button
-                aria-pressed={colorMode === "light"}
-                onClick={() => setColorMode("light")}
-              >
-                {tr("浅色")}
-              </button>
-              <button
-                aria-pressed={colorMode === "dark"}
-                onClick={() => setColorMode("dark")}
-              >
-                {tr("暗色")}
-              </button>
-            </div>
-          </div>
-        </div>
         <fieldset className="theme-options">
           <legend>{tr("收音机主题")}</legend>
           <label className={theme === "walnut" ? "chosen" : ""}>
@@ -824,7 +814,9 @@ export default function App({ active = true }: { active?: boolean }) {
             />
             <span className="theme-preview walnut-preview" />
             <strong>{tr("胡桃木")}</strong>
-            <small>{tr("温暖的模拟时光")}</small>
+            <small>
+              <TransientCopy>{tr("温暖的模拟时光")}</TransientCopy>
+            </small>
           </label>
           <label className={theme === "vitreous" ? "chosen" : ""}>
             <input
@@ -835,7 +827,9 @@ export default function App({ active = true }: { active?: boolean }) {
             />
             <span className="theme-preview vitreous-preview" />
             <strong>{tr("琉璃夜色")}</strong>
-            <small>{tr("青紫光影，玻璃质感")}</small>
+            <small>
+              <TransientCopy>{tr("青紫光影，玻璃质感")}</TransientCopy>
+            </small>
           </label>
           <label className={theme === "led" ? "chosen" : ""}>
             <input
@@ -846,7 +840,9 @@ export default function App({ active = true }: { active?: boolean }) {
             />
             <span className="theme-preview led-preview" />
             <strong>{tr("光阵立方")}</strong>
-            <small>{tr("三面 LED，点亮声音")}</small>
+            <small>
+              <TransientCopy>{tr("三面 LED，点亮声音")}</TransientCopy>
+            </small>
           </label>
           <label className={theme === "soft" ? "chosen" : ""}>
             <input
@@ -857,7 +853,9 @@ export default function App({ active = true }: { active?: boolean }) {
             />
             <span className="theme-preview soft-preview" />
             <strong>{tr("云白拟态")}</strong>
-            <small>{tr("轻柔机身，圆形调谐")}</small>
+            <small>
+              <TransientCopy>{tr("轻柔机身，圆形调谐")}</TransientCopy>
+            </small>
           </label>
         </fieldset>
         <div className="connection-status">
@@ -899,13 +897,13 @@ export default function App({ active = true }: { active?: boolean }) {
           )}
         </div>
         <fieldset className="playback-options">
-          <legend>{tr("收听方式")}</legend>
+          <legend>{tr("默认播放方式")}</legend>
           <label>
             <input
               type="radio"
               name="connection"
-              checked={!relay}
-              onChange={() => setRelay(false)}
+              checked={!relayPreference}
+              onChange={() => changePlaybackPreference(false)}
             />
             <span>
               <strong>{tr("浏览器直连")}</strong>
@@ -916,9 +914,9 @@ export default function App({ active = true }: { active?: boolean }) {
             <input
               type="radio"
               name="connection"
-              checked={relay}
+              checked={relayPreference}
               disabled={!me.data || !settings.data?.relay_enabled}
-              onChange={() => setRelay(true)}
+              onChange={() => changePlaybackPreference(true)}
             />
             <span>
               <strong>{tr("服务端中转")}</strong>
@@ -934,8 +932,11 @@ export default function App({ active = true }: { active?: boolean }) {
         </fieldset>
         <p className="settings-note">
           {tr(
-            "中转支持公共 HTTP/HTTPS 音频流。配置代理时仅中转 HTTP 音源；HTTPS 与 HLS 音源请选择直连。",
+            "服务器播放支持 HTTP、HTTPS 和 HLS；HTTPS 页面上的 HTTP 音源会自动中转。",
           )}
+        </p>
+        <p className="app-version">
+          {tr("版本")} {settings.data?.version || "—"}
         </p>
         <button className="primary" onClick={() => setSettingsOpen(false)}>
           {tr("完成")}

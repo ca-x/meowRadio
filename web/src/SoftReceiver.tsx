@@ -1,3 +1,5 @@
+import PlaybackVisual from "./PlaybackVisual";
+import TransientCopy from "./TransientCopy";
 import { tr } from "./i18n";
 import { useTranslation } from "react-i18next";
 import {
@@ -15,6 +17,7 @@ type Props = {
   stations: Station[];
   playing: boolean;
   loading: boolean;
+  moving: boolean;
   volume: number;
   saved: boolean;
   onVolume: (volume: number) => void;
@@ -28,6 +31,7 @@ export default function SoftReceiver({
   stations,
   playing,
   loading,
+  moving,
   volume,
   saved,
   onVolume,
@@ -64,24 +68,19 @@ export default function SoftReceiver({
               {index >= 0 ? String(index + 1).padStart(2, "0") : "—"}
             </strong>
             <span>STATION / {station?.codec || "RADIO"}</span>
-            <div className="soft-dial-ticks" aria-hidden="true">
-              {Array.from(
-                {
-                  length: 15,
-                },
-                (_, i) => (
-                  <i key={i} />
-                ),
-              )}
-            </div>
+            <PlaybackVisual variant="soft" running={moving} volume={volume} />
           </div>
         </div>
         <div className="soft-metadata">
-          <h2>{station?.name || tr("调到喜欢的频道")}</h2>
+          <h2>{station?.name || tr("请选择电台")}</h2>
           <p>
-            {station
-              ? `${station.country || tr("世界电台")} · ${station.tags.split(",")[0] || "Radio"}`
-              : tr("一个声音，一段属于自己的时间。")}
+            {station ? (
+              `${station.country || tr("世界电台")} · ${station.tags.split(",")[0] || "Radio"}`
+            ) : (
+              <TransientCopy>
+                {tr("一个声音，一段属于自己的时间。")}
+              </TransientCopy>
+            )}
           </p>
         </div>
         <label className="soft-channel-slider">
@@ -142,12 +141,12 @@ export default function SoftReceiver({
         <span>
           <Radio size={18} /> meowRadio
         </span>
-        <small>LESS NOISE. MORE RADIO.</small>
+        <TransientCopy>LESS NOISE. MORE RADIO.</TransientCopy>
       </div>
       <div className="soft-level-unit">
         <div className="soft-unit-title">
           <Volume2 size={18} />
-          <span>{tr("声音的分寸")}</span>
+          <span>{tr("音量")}</span>
           <span>LEVEL</span>
         </div>
         <div className="soft-volume-readout">

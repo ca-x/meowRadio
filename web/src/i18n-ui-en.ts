@@ -1,4 +1,41 @@
 const uiEnglish: Record<string, string> = {
+  请选择电台: "Select a station",
+  切换浅色: "Switch to light mode",
+  切换暗色: "Switch to dark mode",
+  收听首页: "Radio home",
+  初始化设置: "Initial setup",
+  登录后查看收藏: "Sign in to view favorites",
+  电台加载失败: "Could not load stations",
+  没有找到电台: "No stations found",
+  "点击电台旁的爱心即可收藏。": "Select the heart beside a station to save it.",
+  "{{v0}} · {{v1}}": "{{v0}} \u00b7 {{v1}}",
+  "已登录：{{v0}}": "Signed in as {{v0}}",
+  "收音机外观与播放方式。": "Receiver appearance and playback connection.",
+  版本: "Version",
+  默认播放方式: "Default playback connection",
+  "服务器播放支持 HTTP、HTTPS 和 HLS；HTTPS 页面上的 HTTP 音源会自动中转。":
+    "Server playback supports HTTP, HTTPS and HLS. HTTP streams use the relay automatically on HTTPS pages.",
+  "服务端中转未启用，请联系管理员":
+    "Server relay is disabled. Contact your administrator.",
+  播放资源链接无效: "Invalid playback resource link",
+  电台资源地址过长: "Station resource URL is too long",
+  "播放链接已过期，请重新连接":
+    "Playback link expired. Reconnect to the station.",
+  "此 HLS 播放列表的变量格式暂不支持":
+    "This HLS playlist uses unsupported URL variables.",
+  "HLS 资源地址无效": "Invalid HLS resource URL",
+  "HLS 包含不支持的资源协议或加密方式":
+    "HLS uses an unsupported resource protocol or encryption method.",
+  "HLS 资源属性格式无效": "Invalid HLS resource attribute",
+  "HLS 播放列表过大": "HLS playlist is too large",
+  "未收到有效的 HLS 播放列表":
+    "The station did not return a valid HLS playlist.",
+  "无效的 HLS 请求参数": "Invalid HLS request parameters",
+  "HLS 播放列表读取失败或过大":
+    "HLS playlist could not be read or is too large.",
+  "HLS 播放列表编码无效": "Invalid HLS playlist encoding",
+  此电台未返回可播放的音频流: "The station did not return playable audio.",
+
   " · 已选台": " · Selected",
   "3–32 位字母、数字、下划线或短横线":
     "3–32 letters, numbers, underscores or hyphens",

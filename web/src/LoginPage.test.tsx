@@ -47,7 +47,7 @@ describe("standalone login page", () => {
   it("renders branded login at /login and returns home after success", async () => {
     mount();
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.getByRole("heading", { name: "欢迎回来" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "登录" })).toBeTruthy();
     fireEvent.change(screen.getByLabelText("用户名"), {
       target: { value: "listener" },
     });
@@ -66,9 +66,7 @@ describe("standalone login page", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: "还没有账号？创建一个" }),
     );
-    expect(
-      screen.getByRole("heading", { name: "留住喜欢的声音" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "注册" })).toBeTruthy();
     expect(screen.getByLabelText("再次输入密码")).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();
   });

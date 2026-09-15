@@ -1,3 +1,4 @@
+import TransientCopy from "./TransientCopy";
 import i18n, { tr } from "./i18n";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
@@ -67,8 +68,10 @@ export default function LoginPage() {
           height="94"
           alt=""
         />
-        <h1>{mode === "login" ? tr("欢迎回来") : tr("留住喜欢的声音")}</h1>
-        <p>{tr("一个账号，一份自己的电台收藏。")}</p>
+        <h1>{mode === "login" ? tr("登录") : tr("注册")}</h1>
+        <p>
+          <TransientCopy>{tr("一个账号，一份自己的电台收藏。")}</TransientCopy>
+        </p>
         {me.isError || setup.isError ? (
           <div className="form-error" role="alert">
             {tr("暂时无法连接服务。")}
@@ -110,7 +113,11 @@ export default function LoginPage() {
           </button>
         )}
       </main>
-      <footer>{tr("阿喵收音机 · 把世界，调到喜欢的频道。")}</footer>
+      <footer>
+        <TransientCopy>
+          {tr("阿喵收音机 · 把世界，调到喜欢的频道。")}
+        </TransientCopy>
+      </footer>
     </div>
   );
 }

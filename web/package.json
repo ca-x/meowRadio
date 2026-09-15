@@ -1,6 +1,6 @@
 {
   "name": "meowradio-web",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,6 +12,7 @@
   "dependencies": {
     "@fontsource/outfit": "^5.3.0",
     "@fontsource/space-mono": "^5.3.0",
+    "@lazycatcloud/sdk": "^0.1.553",
     "@radix-ui/react-dialog": "^1.1.15",
     "@tanstack/react-query": "^5.90.0",
     "hls.js": "^1.6.15",

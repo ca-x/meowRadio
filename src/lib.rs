@@ -3,6 +3,8 @@ pub mod catalog;
 pub mod config;
 pub mod directory;
 pub mod error;
+pub mod hls;
+pub mod outbound;
 pub mod proxy;
 pub mod relay;
 pub mod setup;
@@ -36,6 +38,8 @@ pub struct AppState {
     pub catalog: catalog::Catalog,
     pub dummy_hash: Arc<str>,
     pub relay_slots: Arc<Semaphore>,
+    pub outbound: Arc<dyn outbound::Transport>,
+    pub(crate) hls_key: Arc<[u8; 32]>,
     auth_attempts: Arc<Mutex<HashMap<IpAddr, (Instant, u32)>>>,
 }
 pub async fn state(config: Config) -> anyhow::Result<AppState> {
@@ -67,9 +71,14 @@ pub async fn state(config: Config) -> anyhow::Result<AppState> {
     })
     .await??;
     let catalog = catalog::Catalog::new(&config)?;
+    let outbound = Arc::new(outbound::NetworkTransport::new(&config));
+    let mut hls_key = [0u8; 32];
+    rand_core::RngCore::fill_bytes(&mut rand_core::OsRng, &mut hls_key);
     Ok(AppState {
         db,
         catalog,
+        outbound,
+        hls_key: Arc::new(hls_key),
         config,
         dummy_hash: dummy.into(),
         relay_slots: Arc::new(Semaphore::new(32)),

@@ -1,3 +1,4 @@
+import TransientCopy from "./TransientCopy";
 import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -221,7 +222,9 @@ export default function SleepTimer({
             </Dialog.Close>
           </div>
           <Dialog.Description className="sleep-timer-description">
-            {tr("让声音陪你入睡，到时自动停止播放。")}
+            <TransientCopy>
+              {tr("让声音陪你入睡，到时自动停止播放。")}
+            </TransientCopy>
           </Dialog.Description>
           {deadline !== null && (
             <p className="sleep-timer-active">

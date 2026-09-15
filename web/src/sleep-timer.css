@@ -486,3 +486,10 @@
     animation: none;
   }
 }
+
+.receiver:not(.receiver-vitreous):not(.receiver-soft)
+  .sleep-timer-entry:not([data-running="true"]) {
+  color: #fff5dc;
+  background: #24180e55;
+  border-color: #ffe5b333;
+}

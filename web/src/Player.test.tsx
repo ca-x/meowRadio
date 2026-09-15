@@ -12,6 +12,7 @@ import type { Station } from "./api";
 const hls = vi.hoisted(() => ({
   manifest: undefined as (() => void) | undefined,
   destroy: vi.fn(),
+  loadSource: vi.fn(),
 }));
 vi.mock("./api", async (original) => ({
   ...(await original<object>()),
@@ -23,7 +24,9 @@ vi.mock("hls.js", () => ({
     static isSupported() {
       return true;
     }
-    loadSource() {}
+    loadSource(source: string) {
+      hls.loadSource(source);
+    }
     attachMedia() {}
     destroy() {
       hls.destroy();
@@ -153,4 +156,36 @@ it("updates an existing playback error when the interface language changes", asy
       await i18n.changeLanguage("zh");
     });
   }
+});
+
+it("loads relayed HLS through the authenticated origin instead of its HTTP address", async () => {
+  render(
+    <Player
+      {...props}
+      relay
+      station={{ ...station, url: "http://example.com/live.m3u8", hls: true }}
+    />,
+  );
+  await waitFor(() =>
+    expect(hls.loadSource).toHaveBeenLastCalledWith("/api/stream/station-a"),
+  );
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+it("starts motion only on playing and stops while buffering, muted, or hidden", () => {
+  const { rerender } = render(<Player {...props} />);
+  const visual = () => document.querySelector(".playback-visual--meter")!;
+  const audio = document.querySelector("audio")!;
+  expect(visual().getAttribute("data-running")).toBe("false");
+  fireEvent.playing(audio);
+  expect(visual().getAttribute("data-running")).toBe("true");
+  fireEvent.waiting(audio);
+  expect(visual().getAttribute("data-running")).toBe("false");
+  fireEvent.playing(audio);
+  rerender(<Player {...props} active={false} />);
+  expect(visual().getAttribute("data-running")).toBe("false");
+  rerender(<Player {...props} />);
+  fireEvent.change(document.getElementById("volume")!, {
+    target: { value: "0" },
+  });
+  expect(visual().getAttribute("data-running")).toBe("false");
 });

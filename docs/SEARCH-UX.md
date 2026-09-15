@@ -15,3 +15,10 @@ Review scope: Chinese composition input, FM-name/frequency queries, filtering, p
 Standalone filtering: full country/language/type directory loads only after opening the filter entry. Draft edits do not change the list until Apply; closing discards them. No keyword is required. Home contains no filter fields.
 
 Validation: six dedicated search tests cover normalization, debounce, composition, immediate submit, clear cancellation, and external reset. Existing six playback tests continue to verify uninterrupted playback across all four themes. The service still searches Radio Browser directory entries; terrestrial-only FM without an internet stream is outside its scope.
+
+
+## v0.1.2 交互修订
+
+首页顶栏提供中文/English 和浅色/暗色快捷切换，设置保留四种收音机外观、连接方式与版本。首页导航保留音频实例与当前筛选；浏览状态、页码及默认中转方式保存在本浏览器。HTTP HLS 可通过认证中转播放，所有子资源维持签名与公共目的地址检查。
+
+宣传文字使用 TransientCopy：首次进入可见区域淡入 180ms、停留 1.5 秒、淡出 200ms，保留布局位置，重渲染不重复；减少动态效果时缩短透明度过渡。功能说明、错误与播放状态不自动隐藏。四种外观使用播放状态动效，仅实际播放且页面可见、音量非零时运动，不伪造频谱。LazyCat 控制栏能力仅在受支持 WebShell 环境启用。

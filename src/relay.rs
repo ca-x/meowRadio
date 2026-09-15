@@ -4,15 +4,12 @@ use crate::{
 };
 use axum::{
     body::Body,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
 };
 use futures_util::StreamExt;
-use std::{
-    net::{IpAddr, SocketAddr},
-    time::Duration,
-};
+use std::{net::IpAddr, time::Duration};
 
 pub fn public_ip(ip: IpAddr) -> bool {
     // Conservative global-unicast allow rule, including mapped IPv4 and reserved ranges.
@@ -49,125 +46,160 @@ pub fn public_ip(ip: IpAddr) -> bool {
         }
     }
 }
+#[derive(Default, serde::Deserialize)]
+pub struct StreamQuery {
+    resource: Option<String>,
+    #[serde(rename = "_HLS_msn")]
+    msn: Option<u64>,
+    #[serde(rename = "_HLS_part")]
+    part: Option<u64>,
+    #[serde(rename = "_HLS_skip")]
+    skip: Option<String>,
+}
 pub async fn stream(
     State(s): State<AppState>,
     headers: HeaderMap,
     Path(id): Path<String>,
+    Query(query): Query<StreamQuery>,
 ) -> Result<Response> {
-    auth::user(&s, &headers).await?;
+    let user = auth::user(&s, &headers).await?;
     if !s.config.relay {
         return Err(AppError(StatusCode::FORBIDDEN, "服务端中转未启用"));
     }
-    let permit = s.relay_slots.clone().try_acquire_owned().map_err(|_| {
-        AppError(
-            StatusCode::TOO_MANY_REQUESTS,
-            "收听人数较多，请使用直连模式",
+    uuid::Uuid::parse_str(&id).map_err(|_| AppError::bad("无效的电台编号"))?;
+    let permit = s
+        .relay_slots
+        .clone()
+        .try_acquire_owned()
+        .map_err(|_| AppError(StatusCode::TOO_MANY_REQUESTS, "收听人数较多，请稍后重试"))?;
+    let (mut url, kind) = if let Some(token) = &query.resource {
+        let (url, kind) = crate::hls::resource(&s, user.id, &id, token)?;
+        (url, Some(kind))
+    } else {
+        let station = s.catalog.station(&id).await?;
+        let url = url::Url::parse(&station.url).map_err(|_| AppError::bad("电台地址无效"))?;
+        let hls = station.hls || url.path().to_ascii_lowercase().ends_with(".m3u8");
+        (
+            url,
+            if hls {
+                Some(crate::hls::Kind::Playlist)
+            } else {
+                None
+            },
         )
-    })?;
-    let station = s.catalog.station(&id).await?;
-    if station.hls {
-        return Err(AppError::bad("HLS 电台请使用直连模式"));
+    };
+    if query
+        .skip
+        .as_deref()
+        .is_some_and(|value| !matches!(value, "YES" | "v2"))
+    {
+        return Err(AppError::bad("无效的 HLS 请求参数"));
     }
-    let mut url = url::Url::parse(&station.url).map_err(|_| AppError::bad("电台地址无效"))?;
+    if query.msn.is_some() || query.part.is_some() || query.skip.is_some() {
+        if kind != Some(crate::hls::Kind::Playlist) {
+            return Err(AppError::bad("无效的 HLS 请求参数"));
+        }
+        let existing: Vec<(String, String)> = url
+            .query_pairs()
+            .filter(|(name, _)| !matches!(name.as_ref(), "_HLS_msn" | "_HLS_part" | "_HLS_skip"))
+            .map(|(k, v)| (k.into_owned(), v.into_owned()))
+            .collect();
+        let mut pairs = url.query_pairs_mut();
+        pairs.clear().extend_pairs(existing);
+        if let Some(value) = query.msn {
+            pairs.append_pair("_HLS_msn", &value.to_string());
+        }
+        if let Some(value) = query.part {
+            pairs.append_pair("_HLS_part", &value.to_string());
+        }
+        if let Some(value) = &query.skip {
+            pairs.append_pair("_HLS_skip", value);
+        }
+    }
     for _ in 0..6 {
-        if !matches!(url.scheme(), "http" | "https")
-            || !url.username().is_empty()
-            || url.password().is_some()
-        {
-            return Err(AppError::bad("不支持此电台地址"));
-        }
-        let host = url
-            .host_str()
-            .ok_or_else(|| AppError::bad("电台缺少主机名"))?
-            .trim_matches(['[', ']'])
-            .to_string();
-        let port = url.port_or_known_default().unwrap();
-        if !matches!(port, 80 | 443 | 8000..=9999) {
-            return Err(AppError::bad("电台端口不在中转支持范围内"));
-        }
-        let addresses: Vec<SocketAddr> = tokio::time::timeout(
-            Duration::from_secs(5),
-            tokio::net::lookup_host((host.as_str(), port)),
-        )
-        .await
-        .map_err(|_| AppError::upstream())?
-        .map_err(|_| AppError::upstream())?
-        .collect();
-        if addresses.is_empty() || addresses.iter().any(|a| !public_ip(a.ip())) {
-            return Err(AppError::bad("中转仅允许公共互联网电台"));
-        }
-        let mut builder = reqwest::Client::builder()
-            .no_proxy()
-            .redirect(reqwest::redirect::Policy::none())
-            .connect_timeout(Duration::from_secs(10))
-            .read_timeout(Duration::from_secs(30))
-            .user_agent("meowRadio/0.1");
-        let mut target = url.clone();
-        if let Some(proxy) = &s.config.proxy {
-            // Pin the destination even through a proxy. Plain HTTP can preserve Host;
-            // HTTPS needs original TLS SNI, so reject instead of permitting DNS rebinding.
-            if url.scheme() == "https" {
-                return Err(AppError::bad(
-                    "HTTPS 电台通过代理中转暂不支持，请切换直连模式",
-                ));
-            }
-            target
-                .set_ip_host(addresses[0].ip())
-                .map_err(|_| AppError::upstream())?;
-            builder = builder.proxy(reqwest::Proxy::all(proxy).map_err(|_| AppError::upstream())?);
-        } else {
-            builder = builder.resolve_to_addrs(&host, &addresses);
-        }
-        let authority = match url.port() {
-            Some(p) => format!("{}:{p}", url.host_str().unwrap()),
-            None => url.host_str().unwrap().to_string(),
-        };
-        let response = builder
-            .build()
-            .map_err(|_| AppError::upstream())?
-            .get(target)
-            .header(header::HOST, authority)
-            .send()
-            .await
-            .map_err(|_| AppError::upstream())?;
-        if response.status().is_redirection() {
+        let response = s.outbound.get(&url, headers.get(header::RANGE)).await?;
+        if response.status.is_redirection() {
             let location = response
-                .headers()
+                .headers
                 .get(header::LOCATION)
                 .and_then(|h| h.to_str().ok())
                 .ok_or_else(AppError::upstream)?;
             url = url.join(location).map_err(|_| AppError::upstream())?;
             continue;
         }
-        if !response.status().is_success() {
+        if !response.status.is_success() {
             return Err(AppError::upstream());
         }
         let content_type = response
-            .headers()
+            .headers
             .get(header::CONTENT_TYPE)
             .and_then(|h| h.to_str().ok())
-            .unwrap_or("audio/mpeg")
-            .to_string();
-        if !(content_type.starts_with("audio/")
-            || content_type.starts_with("application/ogg")
-            || content_type.starts_with("application/octet-stream"))
+            .unwrap_or("application/octet-stream")
+            .to_ascii_lowercase();
+        let playlist = kind == Some(crate::hls::Kind::Playlist)
             || content_type.contains("mpegurl")
-        {
-            return Err(AppError::bad("此电台格式无法中转，请切换直连模式"));
+            || url.path().to_ascii_lowercase().ends_with(".m3u8");
+        if playlist {
+            let bytes = tokio::time::timeout(
+                Duration::from_secs(10),
+                axum::body::to_bytes(response.body, crate::hls::MAX_PLAYLIST),
+            )
+            .await
+            .map_err(|_| AppError::upstream())?
+            .map_err(|_| AppError::bad("HLS 播放列表读取失败或过大"))?;
+            let text =
+                std::str::from_utf8(&bytes).map_err(|_| AppError::bad("HLS 播放列表编码无效"))?;
+            let rewritten = crate::hls::rewrite(&s, user.id, &id, &url, text)?;
+            return Ok((
+                [
+                    (header::CONTENT_TYPE, "application/vnd.apple.mpegurl"),
+                    (header::CACHE_CONTROL, "no-store"),
+                ],
+                rewritten,
+            )
+                .into_response());
         }
-        // Keep the capacity permit for the entire body lifetime, including disconnects.
-        let stream = response.bytes_stream().map(move |chunk| {
+        if kind.is_none()
+            && !(content_type.starts_with("audio/")
+                || content_type.starts_with("application/ogg")
+                || content_type.starts_with("application/octet-stream"))
+        {
+            return Err(AppError::bad("此电台未返回可播放的音频流"));
+        }
+        let status = response.status;
+        let mut output_headers = HeaderMap::new();
+        output_headers.insert(
+            header::CONTENT_TYPE,
+            if kind.is_some() {
+                header::HeaderValue::from_static("application/octet-stream")
+            } else {
+                content_type.parse().map_err(|_| AppError::upstream())?
+            },
+        );
+        output_headers.insert(
+            header::CACHE_CONTROL,
+            header::HeaderValue::from_static("no-store"),
+        );
+        for name in [header::CONTENT_RANGE, header::ACCEPT_RANGES] {
+            if let Some(value) = response.headers.get(&name) {
+                output_headers.insert(name, value.clone());
+            }
+        }
+        let mut received = 0usize;
+        let stream = response.body.into_data_stream().map(move |chunk| {
             let _ = &permit;
-            chunk
+            chunk.and_then(|bytes| {
+                received = received.saturating_add(bytes.len());
+                if kind.is_some() && received > 64 * 1024 * 1024 {
+                    Err(axum::Error::new(std::io::Error::other(
+                        "HLS resource too large",
+                    )))
+                } else {
+                    Ok(bytes)
+                }
+            })
         });
-        return Ok((
-            [
-                (header::CONTENT_TYPE, content_type),
-                (header::CACHE_CONTROL, "no-store".into()),
-            ],
-            Body::from_stream(stream),
-        )
-            .into_response());
+        return Ok((status, output_headers, Body::from_stream(stream)).into_response());
     }
     Err(AppError::bad("电台重定向次数过多"))
 }

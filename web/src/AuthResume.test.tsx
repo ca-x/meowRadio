@@ -77,7 +77,7 @@ async function scenario(nextId: number) {
   fireEvent.click(
     await screen.findByRole("button", { name: "取消收藏 Example FM" }),
   );
-  await screen.findByRole("heading", { name: "欢迎回来" });
+  await screen.findByRole("heading", { name: "登录" });
   fireEvent.change(screen.getByLabelText("用户名"), {
     target: { value: "listener" },
   });
@@ -85,7 +85,7 @@ async function scenario(nextId: number) {
     target: { value: "safe-test-password" },
   });
   fireEvent.click(screen.getByRole("button", { name: "登录我的收音机" }));
-  await screen.findByRole("heading", { name: "好声音，慢慢听。" });
+  await screen.findByRole("main", { name: "收听首页" });
   return () => deletes;
 }
 it("replays the intended DELETE after the same account signs in again", async () => {

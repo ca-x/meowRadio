@@ -1,3 +1,4 @@
+import PlaybackVisual from "./PlaybackVisual";
 import { tr } from "./i18n";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
@@ -48,9 +49,13 @@ const ring = [
 export default function LedScene({
   playing,
   saved,
+  moving,
+  volume,
 }: {
   playing: boolean;
   saved: boolean;
+  moving: boolean;
+  volume: number;
 }) {
   useTranslation();
   const [view, setView] = useState<"2d" | "3d">(() => {
@@ -75,7 +80,7 @@ export default function LedScene({
         role="group"
         aria-label={tr("LED 视角")}
       >
-        <span>LIGHT STUDY / MR–03</span>
+        <span>MR–03</span>
         <div>
           <button aria-pressed={view === "2d"} onClick={() => change("2d")}>
             2D
@@ -122,8 +127,8 @@ export default function LedScene({
       </div>
       <div className="led-caption">
         <span className={playing ? "active" : ""} />
-        {playing ? tr("信号已点亮") : tr("等待下一个声音")}
-        <span>CYAN / MAGENTA / ICE</span>
+        {playing ? tr("正在收听") : tr("待机")}
+        <PlaybackVisual variant="led" running={moving} volume={volume} />
       </div>
     </div>
   );

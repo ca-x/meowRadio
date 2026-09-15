@@ -1,0 +1,78 @@
+.transient-copy {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 200ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    visibility 0s 200ms;
+}
+.transient-copy[data-phase="visible"] {
+  opacity: 1;
+  visibility: visible;
+  transition-duration: 180ms, 0s;
+  transition-delay: 0s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .transient-copy,
+  .transient-copy[data-phase="visible"] {
+    transition-duration: 80ms, 0s;
+  }
+}
+.home-greeting {
+  display: block;
+  min-height: 48px;
+  padding: 14px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.home-appearance {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.home-language {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.home-language select {
+  max-width: 92px;
+  min-height: 44px;
+  padding: 0 5px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.home-language select option {
+  color: var(--ink);
+  background: var(--canvas);
+}
+.app-version {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 600px) {
+  .site-header nav {
+    gap: 2px;
+  }
+  .site-header .brand > span {
+    font-size: 18px;
+  }
+  .site-header .brand {
+    gap: 5px;
+  }
+  .site-header .brand-logo {
+    width: 32px;
+    height: 32px;
+  }
+  .home-language select {
+    width: 68px;
+    padding: 0;
+    font-size: 12px;
+  }
+}

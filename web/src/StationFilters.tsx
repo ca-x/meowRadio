@@ -1,3 +1,4 @@
+import TransientCopy from "./TransientCopy";
 import i18n, { tr } from "./i18n";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
@@ -187,7 +188,9 @@ export default function StationFilters({
         <Dialog.Content className="modal filters-dialog">
           <Dialog.Title>{tr("筛选电台")}</Dialog.Title>
           <Dialog.Description>
-            {tr("选一个地方，或一种想听的声音。")}
+            <TransientCopy>
+              {tr("选一个地方，或一种想听的声音。")}
+            </TransientCopy>
           </Dialog.Description>
           <form
             onSubmit={(e) => {
