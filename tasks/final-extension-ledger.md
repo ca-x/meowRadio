@@ -6,4 +6,4 @@ The existing dedicated project workspace is retained; file ownership keeps concu
 - Directory outage queue fix: implemented and concurrency-tested.
 - Login context preservation: implemented and auth-resume tested (including account-switch protection).
 
-Final review: prior findings addressed; final countdown/animation scope reviewed clean. Browser and documentation checks complete; release verification pending.
+Final review: prior findings addressed; final countdown/animation scope reviewed clean. Browser and documentation checks complete; release verification complete: v0.1.1 workflow succeeded; published Linux archive checksum/version and anonymous multi-architecture image were verified.

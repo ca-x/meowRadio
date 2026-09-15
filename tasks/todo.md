@@ -16,4 +16,4 @@
 - [x] Add persistent Chinese/English and independent light/dark palettes.
 - [x] Add clock sleep timer and configurable final-countdown emphasis.
 - [x] Update README with exactly three PC and three mobile screenshots.
-- [ ] Publish/verify v0.1.1.
+- [x] Publish/verify v0.1.1: all release jobs passed, five binary archives + checksums, public amd64/arm64 image and matching latest tag.
