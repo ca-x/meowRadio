@@ -1,4 +1,7 @@
 const uiEnglish: Record<string, string> = {
+  "第 {{page}} / {{pages}} 页 · 共 {{total}} 个收藏":
+    "Page {{page}} / {{pages}} · {{total}} favorites",
+
   "中转已开启，服务器使用出站代理。点击切换为直连。":
     "Relay is on and the server uses its outbound proxy. Click to connect directly.",
   "中转已开启。点击切换为浏览器直连。":

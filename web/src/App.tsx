@@ -38,7 +38,13 @@ import {
   Disc3,
 } from "lucide-react";
 import { api, rawApi, ApiError } from "./api";
-import type { Station, User, Settings } from "./api";
+import type {
+  Station,
+  User,
+  Settings,
+  FavoritesSummary,
+  FavoritesPage,
+} from "./api";
 import Player from "./Player";
 import AccountForm from "./AccountForm";
 import useTheme from "./useTheme";
@@ -136,6 +142,8 @@ export default function App({ active = true }: { active?: boolean }) {
   const [filters, setFilters] = useState<Filters>(savedBrowse.filters);
   const { tag, country, language, sort, codec, bitrateMin } = filters;
   const [page, setPage] = useState(savedBrowse.page);
+  const [favoritesPage, setFavoritesPage] = useState(0);
+  useEffect(() => setFavoritesPage(0), [me.data?.id]);
   useEffect(
     () => saveBrowseState({ query, filters, page }),
     [query, filters, page],
@@ -156,6 +164,7 @@ export default function App({ active = true }: { active?: boolean }) {
   const commitSearch = useCallback((value: string) => {
     setQuery(value);
     setPage(0);
+    setFavoritesPage(0);
   }, []);
   const clearFilters = () => {
     setFilters({
@@ -207,11 +216,26 @@ export default function App({ active = true }: { active?: boolean }) {
     enabled: setup.data?.initialized === true && tab === "discover",
   });
   const favorites = useQuery({
-    queryKey: ["favorites", me.data?.id],
-    queryFn: () => api<Station[]>("/favorites"),
+    queryKey: ["favorites", "summary", me.data?.id],
+    queryFn: () => api<FavoritesSummary>("/favorites/summary"),
     enabled: !!me.data,
   });
-  const savedIds = new Set(favorites.data?.map((s) => s.id));
+  const favoriteStations = useQuery({
+    queryKey: ["favorites", "page", me.data?.id, query, favoritesPage],
+    queryFn: ({ signal }) =>
+      api<FavoritesPage>(
+        `/favorites/page?${new URLSearchParams({ q: query, page: String(favoritesPage) })}`,
+        "GET",
+        undefined,
+        signal,
+      ),
+    enabled: !!me.data && tab === "favorites" && active,
+  });
+  useEffect(() => {
+    if (favoriteStations.data && favoriteStations.data.page !== favoritesPage)
+      setFavoritesPage(favoriteStations.data.page);
+  }, [favoriteStations.data, favoritesPage]);
+  const savedIds = new Set(favorites.data?.ids || []);
   const proxyTest = useMutation({
     mutationFn: () =>
       api<{
@@ -352,13 +376,19 @@ export default function App({ active = true }: { active?: boolean }) {
   }, [me.data, settings.data, active]);
   const visible =
     tab === "favorites"
-      ? (favorites.data || []).filter((s) =>
-          `${s.name} ${s.tags} ${s.country}`
-            .toLowerCase()
-            .includes(query.toLowerCase()),
-        )
+      ? favoriteStations.data?.items || []
       : stations.data || [];
-  const currentQuery = tab === "favorites" ? favorites : stations;
+  const currentQuery = tab === "favorites" ? favoriteStations : stations;
+  const currentPage =
+    tab === "favorites" ? (favoriteStations.data?.page ?? favoritesPage) : page;
+  const favoritePageCount = Math.max(
+    1,
+    Math.ceil((favoriteStations.data?.total || 0) / 24),
+  );
+  const changePage = (next: number) => {
+    if (tab === "favorites") setFavoritesPage(next);
+    else setPage(next);
+  };
   const setupNeeded = setup.data?.initialized === false;
   if (setupNeeded)
     return (
@@ -577,7 +607,8 @@ export default function App({ active = true }: { active?: boolean }) {
           theme={theme}
           station={selected}
           stations={visible}
-          favorites={favorites.data || []}
+          favorites={favorites.data?.presets || []}
+          favoritesCount={favorites.data?.ids.length || 0}
           onSelect={choose}
           relay={relay}
           proxyConfigured={settings.data?.proxy_configured}
@@ -602,7 +633,6 @@ export default function App({ active = true }: { active?: boolean }) {
                 aria-selected={tab === "discover"}
                 onClick={() => {
                   setTab("discover");
-                  setPage(0);
                 }}
               >
                 <Globe2 size={18} />
@@ -613,13 +643,14 @@ export default function App({ active = true }: { active?: boolean }) {
                 aria-selected={tab === "favorites"}
                 onClick={() => {
                   setTab("favorites");
-                  setPage(0);
                 }}
               >
                 <Heart size={18} />
                 {tr("我的收藏")}
                 {me.data && (
-                  <span className="count">{favorites.data?.length || 0}</span>
+                  <span className="count">
+                    {favorites.data?.ids.length || 0}
+                  </span>
                 )}
               </button>
             </div>
@@ -647,14 +678,17 @@ export default function App({ active = true }: { active?: boolean }) {
             )}
           </p>
           <p className="search-progress" role="status" aria-live="polite">
-            {tab === "discover" && stations.isFetching
-              ? stations.isPlaceholderData
+            {currentQuery.isFetching
+              ? tab === "discover" && stations.isPlaceholderData
                 ? tr("正在搜索，暂时显示上一次结果…")
                 : tr("正在寻找电台…")
               : currentQuery.isSuccess
                 ? tr("{{v0}} {{v1}} 个电台", {
                     v0: tab === "favorites" ? tr("收藏中匹配") : tr("本页找到"),
-                    v1: visible.length,
+                    v1:
+                      tab === "favorites"
+                        ? favoriteStations.data?.total || 0
+                        : visible.length,
                   })
                 : ""}
           </p>
@@ -759,10 +793,7 @@ export default function App({ active = true }: { active?: boolean }) {
               </div>
             </div>
           ) : (
-            <div
-              className="station-grid"
-              aria-busy={tab === "discover" && stations.isFetching}
-            >
+            <div className="station-grid" aria-busy={currentQuery.isFetching}>
               {visible.map((s, i) => (
                 <article
                   className={`station-card ${s.id === selected?.id ? "tuned" : ""}`}
@@ -823,22 +854,28 @@ export default function App({ active = true }: { active?: boolean }) {
               ))}
             </div>
           )}
-          {tab === "discover" && !stations.isError && (
+          {!currentQuery.isError && (tab === "discover" || !!me.data) && (
             <div className="pagination">
               <span>
-                {stations.isFetching
+                {currentQuery.isFetching
                   ? tr("正在加载电台")
-                  : tr("第 {{v0}} 页 · {{v1}} 个频道", {
-                      v0: page + 1,
-                      v1: visible.length,
-                    })}
+                  : tab === "favorites"
+                    ? tr("第 {{page}} / {{pages}} 页 · 共 {{total}} 个收藏", {
+                        page: currentPage + 1,
+                        pages: favoritePageCount,
+                        total: favoriteStations.data?.total || 0,
+                      })
+                    : tr("第 {{v0}} 页 · {{v1}} 个频道", {
+                        v0: currentPage + 1,
+                        v1: visible.length,
+                      })}
               </span>
               <div>
                 <button
                   className="icon-button"
                   aria-label={tr("上一页")}
-                  disabled={page === 0 || stations.isFetching}
-                  onClick={() => setPage((v) => v - 1)}
+                  disabled={currentPage === 0 || currentQuery.isFetching}
+                  onClick={() => changePage(currentPage - 1)}
                 >
                   <ChevronLeft size={18} />
                 </button>
@@ -846,9 +883,12 @@ export default function App({ active = true }: { active?: boolean }) {
                   className="icon-button"
                   aria-label={tr("下一页")}
                   disabled={
-                    visible.length < 24 || stations.isFetching || page >= 416
+                    currentQuery.isFetching ||
+                    (tab === "favorites"
+                      ? currentPage + 1 >= favoritePageCount
+                      : visible.length < 24 || currentPage >= 416)
                   }
-                  onClick={() => setPage((v) => v + 1)}
+                  onClick={() => changePage(currentPage + 1)}
                 >
                   <ChevronRight size={18} />
                 </button>

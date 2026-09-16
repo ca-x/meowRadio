@@ -45,7 +45,9 @@ beforeEach(async () => {
         relay_enabled: true,
         proxy_configured: false,
       };
-    if (path === "/favorites") return [];
+    if (path === "/favorites/summary") return { ids: [], presets: [] };
+    if (path.startsWith("/favorites/page"))
+      return { items: [], page: 0, page_size: 24, total: 0 };
     if (path.startsWith("/stations")) return [station];
     return {};
   });

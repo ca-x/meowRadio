@@ -3,6 +3,7 @@ pub mod catalog;
 pub mod config;
 pub mod directory;
 pub mod error;
+pub mod favorites;
 pub mod hls;
 pub mod outbound;
 pub mod profile;
@@ -232,6 +233,7 @@ pub fn app(s: AppState) -> Router {
             put(catalog::save).delete(catalog::remove),
         )
         .route("/stream/{id}", get(relay::stream))
+        .merge(favorites::routes())
         .merge(recordings::routes())
         .merge(profile::routes())
         .layer(tower_http::set_header::SetResponseHeaderLayer::overriding(

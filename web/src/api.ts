@@ -89,3 +89,11 @@ export async function rawApi<T>(
   }
   return response.json();
 }
+
+export type FavoritesSummary = { ids: string[]; presets: Station[] };
+export type FavoritesPage = {
+  items: Station[];
+  total: number;
+  page: number;
+  page_size: number;
+};

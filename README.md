@@ -72,6 +72,12 @@ MEOW_INIT_USERNAME=admin MEOW_INIT_PASSWORD="$RADIO_ADMIN_PASSWORD" ./meowradio
 
 在首页点击“筛选”打开面板。国家/地区、语言、节目类型和排序在面板中选择；编码和最低码率放在“音频格式与音质”折叠区。点击“应用筛选”更新列表，关闭面板会丢弃未应用的修改。入口仅显示已启用条件数量，首页不铺开筛选项。目录选项按需加载，括号中的数量是整个目录的收录量，并非组合筛选结果总数。
 
+## 收藏分页
+
+“我的收藏”每页显示 24 个电台，显示匹配总数和页码。搜索覆盖全部收藏（名称、国家和标签），修改关键词后回到第一页；翻页不会中断当前电台。取消末页最后一项收藏时自动退回有效页。“发现”和“收藏”保留各自的页码。
+
+列表由服务端分页返回；收藏标记与银色复古的快捷频道使用单独的轻量摘要，不需要下载全部电台详情。原有 `/api/favorites` 数组接口继续兼容。
+
 ## 定时关闭
 
 点击播放器旁的时钟入口，拖动两根指针设置小时和分钟；也支持键盘方向键、数字输入及快捷预设。点击“开始计时”后按实际截止时间停止播放，重新设置会替换上次计时。
@@ -179,8 +185,8 @@ cargo audit
 CI 检查格式、Clippy、前后端测试、依赖审计、嵌入式二进制及非 root Docker 启动。推送与 `Cargo.toml` 版本一致的 `v*` 标签触发 Release：
 
 ```sh
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.2.1
+git push origin v0.2.1
 ```
 
 所有验证通过后，分别构建 Linux amd64/arm64、macOS amd64/arm64、Windows amd64，上传压缩包和 SHA256SUMS，并发布 `ghcr.io/ca-x/meowradio:<tag>`。正式版本同时更新 `latest`；预发布不覆盖 `latest`。本项目 GHCR 镜像已验证允许匿名拉取。仅需仓库内置 `GITHUB_TOKEN` 的 contents/packages 写权限。
@@ -201,6 +207,8 @@ git push origin v0.2.0
 | `/api/directory` | GET | 国家、语言和常见类型目录，缓存一小时 |
 | `/api/proxy/test` | POST | 登录用户测试服务端代理/直连到外网的联通性 |
 | `/api/favorites` | GET | 当前用户的收藏 |
+| `/api/favorites/page` | GET | 当前用户收藏分页，`q`、从 0 开始的 `page`，固定 24 条/页并返回总数 |
+| `/api/favorites/summary` | GET | 收藏 UUID 与最近 4 个快捷频道 |
 | `/api/favorites/{uuid}` | PUT / DELETE | 收藏 / 取消收藏 |
 | `/api/stream/{uuid}` | GET | 登录用户音频中转 |
 | `/api/settings` | GET | 非敏感部署状态 |

@@ -49,7 +49,11 @@ async function scenario(nextId: number) {
         relay_enabled: true,
         proxy_configured: false,
       };
-    if (path === "/favorites") return deletes > 1 ? [] : [station];
+    if (path === "/favorites/summary")
+      return {
+        ids: deletes > 1 ? [] : [station.id],
+        presets: deletes > 1 ? [] : [station],
+      };
     if (path.startsWith("/stations")) return [station];
     return {};
   });
@@ -66,7 +70,10 @@ async function scenario(nextId: number) {
     relay_enabled: true,
     proxy_configured: false,
   });
-  client.setQueryData(["favorites", 1], [station]);
+  client.setQueryData(["favorites", "summary", 1], {
+    ids: [station.id],
+    presets: [station],
+  });
   render(
     <QueryClientProvider client={client}>
       <MemoryRouter>

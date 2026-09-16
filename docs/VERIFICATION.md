@@ -50,3 +50,12 @@ Published result: [CI](https://github.com/ca-x/meowRadio/actions/runs/3493763223
 - Desktop Chromium kept actual audio playing in an inactive tab for70seconds: time advanced from195.8to265.8, readyState4, sameaudioelement. Offline testing exposed native code4/NotSupportedError on a previously working stream; those errors now remain retryable when offline or previously proven playable. Exhausted automatic retries retain intent only for a new foreground/online recovery cycle.
 - axe on final Pixel red reported0violations and0incomplete checks; the coral panel was darkened for readable text. Silver retro returned0confirmed violations with material/gradient contrast incomplete. Numeric display containers have explicit accessible image roles.
 - Final offline→online browser check passed: native source failures entered bounded retries, online recovery returned to readyState4 with advancing audio time and the exact same audio element. A saved default change is independently tested not to interrupt the current stream; the icon toggle and station relay action only affect this playback.
+
+
+Published v0.2.0: [Release](https://github.com/ca-x/meowRadio/actions/runs/35057327861) succeeded for all five binaries and both Docker architectures. Downloaded Linux amd64 passed SHA256SUMS and printed `meowradio 0.2.0`. Anonymous GHCR checks found linux/amd64 + linux/arm64 for v0.2.0 and latest, both digest `0bc9f9ef4a90394a8df2a4223a79e49ce57d169fc16abab6f824c5ee82c8e72a`.
+
+## v0.2.1
+
+114 frontend tests and46 Rust tests passed, including4 backend pagination suites and3 frontend scenarios. Strict TypeScript/Vite, Rust formatting, Clippy and release build passed. No dependency changes beyond the package version.
+
+Browser QA used49 isolated test favorites and a real101 SMOOTH JAZZ stream. Pages contained24/24/1 stations; the same audio element continued playing across pagination. Deleting the final item returned to page2of2. Searching the whole collection reset to page1of1 and preserved playback. Backend cases cover Unicode Ä/ä, Chinese, tags/countries, literal percent/underscore, stable ordering, empty/out-of-range clamping, authenticated isolation, summary ordering and legacy API compatibility. Independent read-only review found no release blockers and reran4backend+9frontend pagination/navigation tests successfully.

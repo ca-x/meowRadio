@@ -39,6 +39,7 @@ type Props = {
   station: Station | null;
   stations: Station[];
   favorites?: Station[];
+  favoritesCount?: number;
   onSelect: (station: Station) => void;
   relay: boolean;
   proxyConfigured?: boolean;
@@ -59,6 +60,7 @@ export default function Player({
   station,
   stations,
   favorites = [],
+  favoritesCount,
   onSelect,
   relay,
   proxyConfigured = false,
@@ -513,6 +515,7 @@ export default function Player({
           station={station}
           stations={stations}
           favorites={favorites}
+          favoriteCount={favoritesCount}
           playing={status === "playing"}
           loading={status === "loading"}
           moving={moving}

@@ -17,6 +17,7 @@ type Props = {
   station: Station | null;
   stations: Station[];
   favorites: Station[];
+  favoriteCount?: number;
   playing: boolean;
   loading: boolean;
   moving: boolean;
@@ -33,6 +34,7 @@ export default function RetroReceiver({
   station,
   stations,
   favorites,
+  favoriteCount = favorites.length,
   playing,
   loading,
   moving,
@@ -165,7 +167,7 @@ export default function RetroReceiver({
           <div className="retro-presets">
             <div className="retro-presets-heading">
               <span>{tr("我的收藏")}</span>
-              <span>{favorites.length}</span>
+              <span>{favoriteCount}</span>
             </div>
             {favorites.length ? (
               <div className="retro-preset-list">
