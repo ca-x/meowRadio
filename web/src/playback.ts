@@ -7,7 +7,10 @@ export function requiresRelay(
   protocol = window.location.protocol,
 ): boolean {
   try {
-    return protocol === "https:" && new URL(station.url).protocol === "http:";
+    return (
+      station.personal ||
+      (protocol === "https:" && new URL(station.url).protocol === "http:")
+    );
   } catch {
     return false;
   }

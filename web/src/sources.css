@@ -1,0 +1,430 @@
+.sources-page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 40px 50px;
+  color: var(--ink);
+}
+.sources-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  min-height: 94px;
+  border-bottom: 1px solid var(--line);
+}
+.sources-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 38px 0 28px;
+}
+.sources-heading h1 {
+  margin: 0 0 9px;
+  font-size: 28px;
+  letter-spacing: -0.04em;
+}
+.sources-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.sources-heading > div:last-child {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.sources-overview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 12px;
+  margin: 24px 0 8px;
+}
+.sources-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sources-list > li {
+  border-bottom: 1px solid var(--line);
+}
+.source-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-height: 92px;
+  padding: 18px 2px;
+}
+.source-kind {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.source-title {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  padding: 0;
+}
+.source-title strong {
+  overflow-wrap: anywhere;
+  font-size: 16px;
+  font-weight: 600;
+}
+.source-title > span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.source-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+}
+.source-status {
+  padding: 15px 18px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.sources-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 85px 20px;
+  gap: 14px;
+  color: var(--muted);
+}
+.sources-empty h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 19px;
+}
+.sources-empty p {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.danger-text {
+  color: var(--danger);
+}
+.source-stations {
+  padding: 0 0 20px 57px;
+}
+.source-search input {
+  max-width: 380px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--control-line);
+  border-radius: 7px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--field);
+}
+.source-stations > ul {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+}
+.source-stations > ul > li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 0;
+}
+.source-stations > ul > li > div {
+  min-width: 0;
+}
+.source-stations strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.source-stations small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  margin-top: 5px;
+}
+.modal.source-modal {
+  width: min(560px, calc(100vw - 32px));
+}
+.source-modal form > label,
+.source-modal [role="tabpanel"] > label {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 13px;
+  margin: 20px 0;
+}
+.source-modal input:not([type="file"]) {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--control-line);
+  border-radius: 7px;
+  background: var(--field);
+  color: var(--ink);
+  font: inherit;
+}
+.source-file {
+  padding: 26px;
+  border: 1px dashed var(--control-line);
+  border-radius: 12px;
+  align-items: center;
+  text-align: center;
+  background: var(--field);
+}
+.source-file input {
+  max-width: 100%;
+  min-height: 44px;
+}
+.source-help {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.source-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+.modal.source-guide {
+  width: min(760px, calc(100vw - 32px));
+}
+.source-guide dl {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 12px;
+  margin: 22px 0;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.source-guide dt {
+  font-family: monospace;
+  font-weight: 600;
+}
+.source-guide dd {
+  margin: 0;
+  color: var(--muted);
+}
+.source-guide pre {
+  max-height: 280px;
+  overflow: auto;
+  white-space: pre;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.source-guide p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+.personal-source-badge {
+  font-size: 10px;
+  color: var(--accent);
+  margin-left: 7px;
+  white-space: nowrap;
+}
+.personal-library-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.personal-library-tools select {
+  max-width: 150px;
+  min-height: 44px;
+  font-size: 12px;
+  border: 1px solid var(--control-line);
+  border-radius: 7px;
+  color: var(--ink);
+  background: var(--field);
+  padding: 7px 9px;
+}
+@media (max-width: 700px) {
+  .sources-page {
+    padding: 0 20px 35px;
+  }
+  .sources-header {
+    min-height: 78px;
+  }
+  .sources-header .brand > span {
+    font-size: 20px;
+  }
+  .sources-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 18px;
+    margin-top: 28px;
+  }
+  .sources-heading h1 {
+    font-size: 24px;
+  }
+  .sources-heading > div:last-child {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .source-stations {
+    padding-left: 0;
+  }
+  .source-row {
+    gap: 8px;
+  }
+  .source-kind {
+    width: 30px;
+  }
+  .source-guide dl {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+  .source-guide dd {
+    margin-bottom: 8px;
+  }
+  .source-dialog-actions {
+    flex-wrap: wrap;
+  }
+}
+.personal-filter-fields {
+  display: grid;
+  gap: 18px;
+  margin: 24px 0;
+}
+.personal-filter-fields label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+.personal-filter-fields select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid var(--control-line);
+  border-radius: 7px;
+  color: var(--ink);
+  background: var(--field);
+  font: inherit;
+}
+.station-section .tabs {
+  gap: 18px;
+}
+@media (max-width: 640px) {
+  .station-section .tabs {
+    gap: 10px;
+  }
+  .station-section .tabs button {
+    gap: 5px;
+    font-size: 12px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+.modal.source-validation-modal {
+  width: min(820px, calc(100vw - 28px));
+}
+.source-validation-progress {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 24px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.source-validation-progress progress {
+  flex: 1;
+  min-width: 130px;
+  accent-color: var(--accent);
+  height: 8px;
+}
+.source-validation-select {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 15px;
+  margin: 24px 0 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.source-validation-select label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 36px;
+}
+.invalid-address-list {
+  list-style: none;
+  max-height: 42dvh;
+  overflow: auto;
+  padding: 0;
+  margin: 0 0 18px;
+  border-block: 1px solid var(--line);
+}
+.invalid-address-list > li {
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+}
+.invalid-address-list label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.invalid-address-list input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+.invalid-address-list label > div {
+  min-width: 0;
+}
+.invalid-address-list strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+.invalid-address-list code {
+  display: block;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 7px 0;
+}
+.invalid-address-list span {
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.source-validation-ok {
+  margin: 28px 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink);
+}

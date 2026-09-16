@@ -1,0 +1,10 @@
+# Personal radio sources (user-confirmed)
+
+- Private to current account. Independent /sources management page, entry in user menu. Add from remote URL (JSON subscription or one stream/page) and uploaded JSON; refresh/replace, delete one source, delete individual station, clear all; cascading deletion removes only matching personal favorites.
+- Home has System radio / Personal radio / Favorites tabs. Favorites merge both and label personal origin. Existing system catalog and API compatibility remain.
+- JSON keeps name, categories:string[][], urls:(string|{url,headers})[]. Preserve multiple alternatives; parse legacy `-headers` and `-reuse` as data, never shell. Format guide + downloadable example. Full supported URL families: HTTP(S) direct/HLS/FLV, page/API resolvers, RTMP(S), RTSP(S), MMS/MMST/MMSH. Invalid/offline/access-controlled endpoints report accurate failures.
+- User demands all these families, not merely marking legacy schemes unsupported. Normalize private playback to same-origin MP3 via FFmpeg, with protocol-specific Rust ingress gateways; keep remote network outside FFmpeg whenever possible. Docker bundles FFmpeg; native binary uses installed ffmpeg/MEOW_FFMPEG. Public-IP checks/pinning on every destination and redirect, header allowlist, bounded fetch/parse/transcode resources. No executable options from import data.
+- Personal stations use UUID ids and `personal: true`, source_id/source_name metadata. Playback always server-based; personal entries integrate existing recording/sleep/recovery. Stable station ids across successful refresh, old snapshot preserved on failure. FK cascade removes private favorites on deletions atomically.
+- Existing v0.2.1 release verification continues; do not move old tags. Next feature version after tests, docs and screenshots.
+
+- Delivered v0.3.0 candidate: owner-scoped URL/file sources, all specified protocol families, source management and format guide, merged labeled favorites, per-address validation confirmation and cleanup. Snapshot tokens bind import confirmation; job IDs bind cancellation. Final gate results are in docs/VERIFICATION.md.

@@ -3,7 +3,7 @@ import i18n, { tr } from "./i18n";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import AccountForm from "./AccountForm";
 import useTheme from "./useTheme";
@@ -14,6 +14,10 @@ export default function LoginPage() {
   useTheme();
   const cache = useQueryClient();
   const navigate = useNavigate();
+  const returnTo =
+    new URLSearchParams(useLocation().search).get("returnTo") === "/sources"
+      ? "/sources"
+      : "/";
   const [mode, setMode] = useState<"login" | "register">("login");
   useEffect(() => {
     document.title = tr("{{v0}} · 阿喵收音机", {
@@ -43,8 +47,8 @@ export default function LoginPage() {
         initialized: boolean;
       }>("/setup"),
   });
-  if (me.data || setup.data?.initialized === false)
-    return <Navigate to="/" replace />;
+  if (setup.data?.initialized === false) return <Navigate to="/" replace />;
+  if (me.data) return <Navigate to={returnTo} replace />;
   return (
     <div className="login-page">
       <header className="login-header">
@@ -94,7 +98,7 @@ export default function LoginPage() {
               cache.setQueryData(["setup"], {
                 initialized: true,
               });
-              navigate("/", {
+              navigate(returnTo, {
                 replace: true,
               });
             }}

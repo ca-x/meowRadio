@@ -589,6 +589,20 @@ async fn directory_is_cached_and_filters_work_without_a_search_keyword() {
 #[tokio::test]
 async fn standalone_login_route_and_proxy_diagnostic_permissions() {
     let (_dir, s, app) = application().await;
+    for path in ["/sources", "/sources/"] {
+        let response = app
+            .clone()
+            .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK, "{path}");
+        assert!(
+            response.headers()["content-type"]
+                .to_str()
+                .unwrap()
+                .starts_with("text/html")
+        );
+    }
     let response = app
         .clone()
         .oneshot(

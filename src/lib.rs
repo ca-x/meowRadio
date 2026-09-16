@@ -5,12 +5,19 @@ pub mod directory;
 pub mod error;
 pub mod favorites;
 pub mod hls;
+pub mod legacy_media;
+pub mod media;
+pub mod media_gateway;
 pub mod outbound;
+pub mod personal_sources;
 pub mod profile;
 pub mod proxy;
 pub mod recordings;
 pub mod relay;
 pub mod setup;
+pub mod source_resolver;
+pub mod source_types;
+pub mod source_validation;
 use argon2::{Argon2, PasswordHasher, password_hash::SaltString};
 use axum::{
     Json, Router,
@@ -41,6 +48,9 @@ pub struct AppState {
     pub catalog: catalog::Catalog,
     pub dummy_hash: Arc<str>,
     pub relay_slots: Arc<Semaphore>,
+    pub media: Arc<media::MediaService>,
+    pub source_import_slots: Arc<Semaphore>,
+    pub source_validation: Arc<source_validation::ValidationService>,
     pub recording_upload_slots: Arc<Semaphore>,
     pub recordings_dir: Arc<std::path::PathBuf>,
     pub outbound: Arc<dyn outbound::Transport>,
@@ -88,6 +98,9 @@ pub async fn state(config: Config) -> anyhow::Result<AppState> {
         config,
         dummy_hash: dummy.into(),
         relay_slots: Arc::new(Semaphore::new(32)),
+        media: Arc::new(media::MediaService::new()),
+        source_import_slots: Arc::new(Semaphore::new(2)),
+        source_validation: Arc::new(source_validation::ValidationService::new()),
         recording_upload_slots: Arc::new(Semaphore::new(4)),
         recordings_dir: Arc::new(recordings_dir),
         auth_attempts: Default::default(),
@@ -98,7 +111,9 @@ async fn security(State(s): State<AppState>, request: Request, next: Next) -> Re
     let private_recording = path == "/api/recordings"
         || path.starts_with("/api/recordings/")
         || path == "/api/profile"
-        || path.starts_with("/api/profile/");
+        || path.starts_with("/api/profile/")
+        || path.starts_with("/api/personal-sources")
+        || path.starts_with("/api/personal-stations");
     if !matches!(
         *request.method(),
         axum::http::Method::GET | axum::http::Method::HEAD | axum::http::Method::OPTIONS
@@ -173,7 +188,7 @@ async fn frontend(uri: axum::http::Uri) -> Response {
     if path.starts_with("api/") {
         return StatusCode::NOT_FOUND.into_response();
     }
-    let path = if path.is_empty() || path.trim_end_matches('/') == "login" {
+    let path = if path.is_empty() || matches!(path.trim_end_matches('/'), "login" | "sources") {
         "index.html"
     } else {
         path
@@ -233,6 +248,11 @@ pub fn app(s: AppState) -> Router {
             put(catalog::save).delete(catalog::remove),
         )
         .route("/stream/{id}", get(relay::stream))
+        .merge(personal_sources::routes())
+        .merge(source_validation::routes())
+        .route("/personal-sources/capabilities", get(media_capabilities))
+        .route("/personal-stations/{id}/stream", get(media::stream))
+        .route("/personal-stations/{id}", get(personal_station))
         .merge(favorites::routes())
         .merge(recordings::routes())
         .merge(profile::routes())
@@ -247,4 +267,24 @@ pub fn app(s: AppState) -> Router {
         .layer(middleware::from_fn_with_state(s.clone(), security))
         .layer(tower_http::trace::TraceLayer::new_for_http())
         .with_state(s)
+}
+
+async fn media_capabilities(
+    State(s): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> error::Result<Json<media::Capabilities>> {
+    auth::user(&s, &headers).await?;
+    Ok(Json(s.media.probe().await))
+}
+
+async fn personal_station(
+    State(s): State<AppState>,
+    headers: axum::http::HeaderMap,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> error::Result<Json<catalog::Station>> {
+    let user = auth::user(&s, &headers).await?;
+    personal_sources::owned_station(&s, user.id, &id)
+        .await?
+        .map(Json)
+        .ok_or(AppError(StatusCode::NOT_FOUND, "私人订阅或电台不存在"))
 }

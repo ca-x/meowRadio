@@ -9,6 +9,7 @@
 - **定时关闭**：拖动时针、分针选择时长，也可输入数字或使用 15/30/60/120 分钟预设。支持取消、重新设定；换台、切换外观和进入登录页不会重置计时。可设置关闭前 10 秒、30 秒、1 分钟或 5 分钟显示强调倒计时，也可关闭提示。
 - **录制与录音库**：浏览器通过服务端播放时可点击开始/停止录制；换台、暂停或定时结束会自动停止并上传。用户菜单内独立管理个人录音，支持应用内试听、重命名、下载和删除。系统设置提供浏览器支持的格式、目标码率和最长时长。
 - **个人资料**：用户菜单 → 个人选项，分为“个人资料”（昵称、头像）与“修改密码”两个页签；头像转换为 256×256 WebP 并覆盖旧文件。改密码需验证当前密码，保留当前登录并撤销其他设备会话。
+- **个人电台源**：网络地址或 JSON 文件导入，按用户保存；独立管理、分类筛选、多地址备用，与系统电台合并收藏并标注来源。检测失败地址需确认后清理，有效线路及收藏保留。
 - **多用户**：独立 `/login` 页面完成用户名/密码登录与注册，独立收藏；Argon2id 密码、HttpOnly 会话 Cookie、过期与退出撤销。
 - **首次初始化**：环境变量创建首个管理员，或首次访问时使用设置向导。初始化只运行一次，不会因重启重置密码。
 - **世界电台**：基于 `radiobrowser` crate 和 Radio Browser API，支持名称、类型、国家筛选及分页。首页只保留筛选入口，点击后可按国家、语言、节目类型、排序及音质组合浏览，无需关键词。中文输入法选词完成后再搜索，支持 Enter 立即搜索和空结果恢复。`FM 104.2` / 全角频率写法会转换为电台名称中的频率关键词。
@@ -23,15 +24,15 @@
 
 ### PC 端
 
-| 弧光调谐 | 奶油白 | 主题选择 |
+| 弧光调谐 | 个人源管理 | 无效地址确认 |
 | --- | --- | --- |
-| ![PC 弧光调谐暗色](docs/screenshots/pc-arc.png) | ![PC 奶油白浅色](docs/screenshots/pc-ivory.png) | ![PC 九套主题设置](docs/screenshots/pc-themes.png) |
+| ![PC 弧光调谐暗色](docs/screenshots/pc-arc.png) | ![PC 个人源管理](docs/screenshots/pc-sources.png) | ![PC 无效地址确认](docs/screenshots/pc-source-cleanup.png) |
 
 ### 移动端
 
-| 黑白刻度 | 银色复古 | 红屏像素 |
+| 黑白刻度 | 个人源管理 | 无效地址确认 |
 | --- | --- | --- |
-| ![移动端黑白刻度](docs/screenshots/mobile-mono.png) | ![移动端银色复古](docs/screenshots/mobile-retro.png) | ![移动端红屏像素](docs/screenshots/mobile-signal.png) |
+| ![移动端黑白刻度](docs/screenshots/mobile-mono.png) | ![移动端个人源管理](docs/screenshots/mobile-sources.png) | ![移动端无效地址确认](docs/screenshots/mobile-source-cleanup.png) |
 
 ## Docker
 
@@ -66,7 +67,7 @@ docker run -d --name meowradio \
 MEOW_INIT_USERNAME=admin MEOW_INIT_PASSWORD="$RADIO_ADMIN_PASSWORD" ./meowradio
 ```
 
-无需 Node.js 或外部数据库。默认监听 `0.0.0.0:3000`，自动创建 `data/meowradio.db`。Windows 使用 `meowradio.exe`；Linux GNU 二进制面向 Ubuntu 24.04 / glibc 2.39 或更高版本，旧发行版建议 Docker。`--version` 显示版本。
+无需 Node.js 或外部数据库。个人源播放及检测需要安装 FFmpeg（包含 MP3 编码器及所需协议），或用 `MEOW_FFMPEG` 指定路径；Docker 镜像已包含。默认监听 `0.0.0.0:3000`，自动创建 `data/meowradio.db`。Windows 使用 `meowradio.exe`；Linux GNU 二进制面向 Ubuntu 24.04 / glibc 2.39 或更高版本，旧发行版建议 Docker。`--version` 显示版本。
 
 ## 浏览与筛选
 
@@ -74,9 +75,21 @@ MEOW_INIT_USERNAME=admin MEOW_INIT_PASSWORD="$RADIO_ADMIN_PASSWORD" ./meowradio
 
 ## 收藏分页
 
-“我的收藏”每页显示 24 个电台，显示匹配总数和页码。搜索覆盖全部收藏（名称、国家和标签），修改关键词后回到第一页；翻页不会中断当前电台。取消末页最后一项收藏时自动退回有效页。“发现”和“收藏”保留各自的页码。
+“我的收藏”每页显示 24 个电台，显示匹配总数和页码。搜索覆盖全部收藏（名称、国家和标签），修改关键词后回到第一页；翻页不会中断当前电台。取消末页最后一项收藏时自动退回有效页。“系统电台”“个人电台”和“我的收藏”保留各自的页码。
 
 列表由服务端分页返回；收藏标记与银色复古的快捷频道使用单独的轻量摘要，不需要下载全部电台详情。原有 `/api/favorites` 数组接口继续兼容。
+
+## 个人电台源
+
+用户菜单 → **个人电台源**，或访问 `/sources`。可添加 JSON 订阅网址、单个音频地址或电台播放页，也可直接上传 JSON 文件；页面提供格式说明和示例下载，详见 [个人源格式](docs/PERSONAL-SOURCES.md)。网络源手动点击更新，文件源重新上传替换；更新失败保留原内容。
+
+首页分为“系统电台”“个人电台”“我的收藏”。个人电台可按源与分类筛选，收藏可与系统电台放在一起，并显示“个人源”标记。进入源管理页面不会中断正在收听的电台。
+
+导入或更新后检查每个地址，仅在对话框列出失败线路，由用户确认清理；也可关闭、重新检测或取消选择。例如 A 有 b、c、d 三个地址，清理失效的 c、d 后仍保留 A、b 及 A 的收藏；只有清空全部线路才删除电台及对应收藏。源管理还支持删除单个电台、单个源或全部个人源，系统源收藏不受影响。
+
+支持 HTTP(S) 连续音频、HLS、FLV、RTMP(S)、RTSP(S)、MMS/MMST/MMSH，以及包含可提取媒体链接的 HTML、JSON、JSONP 接口；央广播放页按 `cf` 选择频道。通过服务端解析并转为同源 MP3（128 kbps），按顺序尝试备用地址，可使用现有录制与定时功能。过期、离线、地域限制、需要登录或只能执行网页脚本获得流地址的链接可能无法播放。
+
+个人源仅允许公共网络目标，拒绝 URL 中的账号密码；每次跳转及媒体子资源都检查目标地址。支持端口 80、82、322、443、554 和 1024–65535；请求头仅允许 User-Agent、Referer、Origin、Accept。每用户最多 32 个源，每次导入最多 5 MiB、5000 个条目；转码最多全局 4 个、每用户 2 个并发任务，地址检测与播放共享转码额度。
 
 ## 定时关闭
 
@@ -86,7 +99,7 @@ MEOW_INIT_USERNAME=admin MEOW_INIT_PASSWORD="$RADIO_ADMIN_PASSWORD" ./meowradio
 
 ## 用户菜单与个人数据
 
-用户菜单包含 **个人选项、系统设置、录音管理、退出登录**。个人选项只有两个页签：“个人资料”编辑昵称、头像；“修改密码”修改账号密码。系统设置单独提供九套主题、默认播放方式、代理诊断、录制参数和版本。主题样式按文件拆分，布局与公共控件分别维护，见 `web/src/receiverThemes.ts` 和各主题 CSS。
+用户菜单包含 **个人选项、系统设置、录音管理、个人电台源、退出登录**。个人选项只有两个页签：“个人资料”编辑昵称、头像；“修改密码”修改账号密码。系统设置单独提供九套主题、默认播放方式、代理诊断、录制参数和版本。主题样式按文件拆分，布局与公共控件分别维护，见 `web/src/receiverThemes.ts` 和各主题 CSS。
 
 登录用户名保持不变，昵称只用于显示。支持 PNG/JPEG/WebP 头像，最大 5 MiB、每边不超过 4096 像素；服务端裁剪为 256×256 WebP 后原子替换。Docker 默认文件布局：
 
@@ -129,6 +142,7 @@ MEOW_INIT_USERNAME=admin MEOW_INIT_PASSWORD="$RADIO_ADMIN_PASSWORD" ./meowradio
 | `MEOW_INIT_PASSWORD` | 未设置 | 首次初始化管理员密码，10–128 字节 |
 | `MEOW_REGISTRATION` | `true` | 是否允许其他用户注册 |
 | `MEOW_SECURE_COOKIE` | `false` | HTTPS 部署设为 `true` |
+| `MEOW_FFMPEG` | `ffmpeg` | 个人源转码及地址检测使用的 FFmpeg 可执行文件路径，修改后重启 |
 | `MEOW_RELAY` | `true` | 是否允许登录用户使用音频中转 |
 | `MEOW_PROXY` | 未设置 | 出站 `http://`、`https://`、`socks5://` 代理，可含认证 |
 | `MEOW_CATALOG_URL` | 公共 Radio Browser 服务 | 自托管 API 根地址，不包含 `/json` |
@@ -145,7 +159,7 @@ MEOW_INIT_USERNAME=admin MEOW_INIT_PASSWORD="$RADIO_ADMIN_PASSWORD" ./meowradio
 - **目录代理**：设置 `MEOW_PROXY` 后，搜索、频道解析和收听计数通过代理请求。代理地址和凭据不会下发到浏览器。
 - **浏览器直连**：音频由浏览器直接请求，不使用服务端代理；支持普通流和 HLS。电台须支持当前浏览器的编码；HLS 还需电台允许跨域请求。
 - **服务端中转**：需要登录，支持连续音频与 HLS，包括主/子播放列表、密钥、初始化片段、音频分片和字节范围。HTTPS 页面可用它收听 HTTP 电台。HLS 子资源使用绑定当前用户与电台的签名链接，仍需登录会话。
-- **中转安全边界**：只接受 Radio Browser 电台 UUID，每次重定向重新检查公共 IP 并固定解析结果。支持端口 80、443、8000–9999，最多 32 个并发中转。
+- **系统源中转安全边界**：只接受 Radio Browser 电台 UUID，每次重定向重新检查公共 IP 并固定解析结果。支持端口 80、443、8000–9999，最多 32 个并发中转。
 - **出站代理**：HTTP/HTTPS 代理通过 CONNECT 连接已验证的目标 IP，代理须允许目标端口的 CONNECT；HTTP 请求保留原始 Host，HTTPS 保留原始 SNI 与证书校验。SOCKS5 同样传递已验证 IP，不启用远程 DNS。`socks5h` 未启用。
 - **HLS 边界**：支持常见直播与低延迟 HLS 资源；不支持带未展开变量的 URI 或非 HTTP(S) DRM 资源。每个播放列表上限 1 MiB，每个分片上限 64 MiB，签名链接 24 小时有效；服务重启后重新选台即可。
 
@@ -185,15 +199,15 @@ cargo audit
 CI 检查格式、Clippy、前后端测试、依赖审计、嵌入式二进制及非 root Docker 启动。推送与 `Cargo.toml` 版本一致的 `v*` 标签触发 Release：
 
 ```sh
-git tag v0.2.1
-git push origin v0.2.1
+git tag v0.3.0
+git push origin v0.3.0
 ```
 
 所有验证通过后，分别构建 Linux amd64/arm64、macOS amd64/arm64、Windows amd64，上传压缩包和 SHA256SUMS，并发布 `ghcr.io/ca-x/meowradio:<tag>`。正式版本同时更新 `latest`；预发布不覆盖 `latest`。本项目 GHCR 镜像已验证允许匿名拉取。仅需仓库内置 `GITHUB_TOKEN` 的 contents/packages 写权限。
 
 ## API
 
-所有修改请求需 `X-Meow-Request: 1`；JSON 请求体限制 8 KiB，头像和录音使用各自的流式/二进制上限。录音上传另需 `X-Meow-Owner: <用户 ID>`，并用查询参数传递 `title`、`station_id`、`station_name`、`duration_seconds`；资料修改也接受此归属标头以防跨标签页账号切换误操作。浏览器 Cookie 会话不使用 localStorage token。
+所有修改请求需 `X-Meow-Request: 1`；普通 JSON 请求体限制 8 KiB，个人源文件上限 5 MiB、地址清理请求上限 12 MiB，头像和录音使用各自的流式/二进制上限。录音上传另需 `X-Meow-Owner: <用户 ID>`，并用查询参数传递 `title`、`station_id`、`station_name`、`duration_seconds`；资料修改也接受此归属标头以防跨标签页账号切换误操作。个人源修改及个人电台收藏请求必须带 `X-Meow-Owner`，所有读取与播放按登录用户隔离。浏览器 Cookie 会话不使用 localStorage token。
 
 | 路径 | 方法 | 说明 |
 | --- | --- | --- |
@@ -211,6 +225,16 @@ git push origin v0.2.1
 | `/api/favorites/summary` | GET | 收藏 UUID 与最近 4 个快捷频道 |
 | `/api/favorites/{uuid}` | PUT / DELETE | 收藏 / 取消收藏 |
 | `/api/stream/{uuid}` | GET | 登录用户音频中转 |
+| `/api/personal-sources` | GET / POST / DELETE | 列出 / 从网络导入 / 清空当前用户源 |
+| `/api/personal-sources/upload` | POST | 原始 JSON 文件上传；`label`、可选 `source_id` 查询参数 |
+| `/api/personal-sources/{id}` | DELETE | 删除源及对应个人收藏 |
+| `/api/personal-sources/{id}/refresh` | POST | 手动更新网络源 |
+| `/api/personal-sources/{id}/validation` | POST / GET / DELETE | 开始 / 查询 / 取消地址检测，取消需 `job_id` 查询参数 |
+| `/api/personal-sources/{id}/validation/clear` | POST | 确认清理选中失败地址，校验检测任务及当前地址 |
+| `/api/personal-sources/capabilities` | GET | 当前 FFmpeg 与协议支持情况 |
+| `/api/personal-stations` | GET | 当前用户电台，支持 `q`、`page`、`source_id`、`category` |
+| `/api/personal-stations/{id}` | GET / DELETE | 读取 / 删除个人电台及其收藏 |
+| `/api/personal-stations/{id}/stream` | GET | 当前用户个人电台音频，MP3 |
 | `/api/settings` | GET | 非敏感部署状态 |
 | `/api/profile` | GET / PATCH | 当前资料 / 更新 `{nickname}` |
 | `/api/profile/avatar` | GET / POST / DELETE | 私有头像读取 / 原始图片上传 / 删除 |

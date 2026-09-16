@@ -15,6 +15,9 @@ export type Station = {
   codec: string;
   bitrate: number;
   hls: boolean;
+  personal?: boolean;
+  source_id?: string;
+  source_name?: string;
 };
 export type Settings = {
   proxy_configured: boolean;
@@ -26,6 +29,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public details?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -50,7 +54,11 @@ export async function api<T>(
   });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new ApiError(response.status, data.error || "请求失败，请稍后重试");
+    throw new ApiError(
+      response.status,
+      data.error || "请求失败，请稍后重试",
+      data,
+    );
   }
   return response.status === 204 ||
     response.headers.get("content-length") === "0"
@@ -85,7 +93,7 @@ export async function rawApi<T>(
   });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new ApiError(response.status, data.error || "上传失败，请重试");
+    throw new ApiError(response.status, data.error || "上传失败，请重试", data);
   }
   return response.json();
 }

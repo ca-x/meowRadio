@@ -195,12 +195,22 @@ export default function Player({
     };
     const armLoadingTimeout = () => {
       if (loadingTimer !== undefined) return;
-      loadingTimer = setTimeout(() => {
-        loadingTimer = undefined;
-        retry();
-      }, 25000);
+      loadingTimer = setTimeout(
+        () => {
+          loadingTimer = undefined;
+          retry();
+        },
+        station?.personal ? 90000 : 25000,
+      );
     };
-    const url = station && playableUrl(station.url);
+    const url =
+      station &&
+      (station.personal
+        ? new URL(
+            `/api/personal-stations/${encodeURIComponent(station.id)}/stream`,
+            location.origin,
+          ).href
+        : playableUrl(station.url));
     const connect = () => {
       if (
         disposed ||
@@ -241,7 +251,11 @@ export default function Player({
           } else retry();
         });
       };
-      const source = relay ? `/api/stream/${station.id}` : url;
+      const source = station.personal
+        ? url
+        : relay
+          ? `/api/stream/${station.id}`
+          : url;
       if (
         isHls(station) &&
         !element.canPlayType("application/vnd.apple.mpegurl")
@@ -378,7 +392,7 @@ export default function Player({
         } else if (
           connected &&
           !hasPlayed &&
-          Date.now() - lastProgress < 25000
+          Date.now() - lastProgress < (station?.personal ? 90000 : 25000)
         ) {
           // A focus event must not restart an already pending initial connection.
           return;
@@ -853,14 +867,15 @@ export default function Player({
           <PlaybackRoute
             relay={relay}
             proxyConfigured={proxyConfigured}
-            directAllowed={!requiresRelay(station)}
+            personal={station.personal}
+            directAllowed={!station.personal && !requiresRelay(station)}
             onChange={onRouteChange}
           />
         )}
         <RecordingControl
           audio={audio}
           station={station}
-          relay={relay}
+          relay={relay || !!station?.personal}
           status={status}
           active={active}
           sourceKey={selection}

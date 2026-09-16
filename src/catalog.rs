@@ -29,6 +29,12 @@ pub struct Station {
     pub codec: String,
     pub bitrate: u32,
     pub hls: bool,
+    #[serde(default)]
+    pub personal: bool,
+    #[serde(default)]
+    pub source_id: Option<String>,
+    #[serde(default)]
+    pub source_name: Option<String>,
 }
 impl From<ApiStation> for Station {
     fn from(s: ApiStation) -> Self {
@@ -46,6 +52,9 @@ impl From<ApiStation> for Station {
             codec: s.codec,
             bitrate: s.bitrate,
             hls: s.hls == 1,
+            personal: false,
+            source_id: None,
+            source_name: None,
         }
     }
 }
@@ -253,9 +262,15 @@ pub async fn save(
     Path(id): Path<String>,
 ) -> Result<Json<Station>> {
     let u = auth::user(&s, &headers).await?;
-    let station = s.catalog.station(&id).await?;
-    sqlx::query("INSERT INTO favorites(user_id,station_id,station_json) VALUES(?,?,?) ON CONFLICT(user_id,station_id) DO UPDATE SET station_json=excluded.station_json")
-        .bind(u.id).bind(&id).bind(serde_json::to_string(&station).unwrap()).execute(&s.db).await?;
+    let station = match crate::personal_sources::owned_station(&s, u.id, &id).await? {
+        Some(station) => {
+            crate::personal_sources::expected_owner(&headers, u.id)?;
+            station
+        }
+        None => s.catalog.station(&id).await?,
+    };
+    sqlx::query("INSERT INTO favorites(user_id,station_id,station_json,personal_station_id) VALUES(?,?,?,?) ON CONFLICT(user_id,station_id) DO UPDATE SET station_json=excluded.station_json,personal_station_id=excluded.personal_station_id")
+        .bind(u.id).bind(&id).bind(serde_json::to_string(&station).unwrap()).bind(if station.personal { Some(&id) } else { None }).execute(&s.db).await?;
     Ok(Json(station))
 }
 pub async fn remove(
@@ -271,7 +286,23 @@ pub async fn remove(
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
-pub async fn click(State(s): State<AppState>, Path(id): Path<String>) -> Result<StatusCode> {
+pub async fn click(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<StatusCode> {
+    let personal: bool =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM personal_stations WHERE id=?)")
+            .bind(&id)
+            .fetch_one(&s.db)
+            .await?;
+    if personal {
+        let user = auth::user(&s, &headers).await?;
+        crate::personal_sources::owned_station(&s, user.id, &id)
+            .await?
+            .ok_or(AppError(StatusCode::NOT_FOUND, "电台不存在"))?;
+        return Ok(StatusCode::NO_CONTENT);
+    }
     // Resolve before recording, so arbitrary caller-controlled paths never reach upstream.
     s.catalog.station(&id).await?;
     let base = s

@@ -1,3 +1,10 @@
+import PersonalFilters from "./PersonalFilters";
+import {
+  SOURCE_CHANGE,
+  type SourceChange,
+  type PersonalPage,
+  type PersonalSource,
+} from "./personalSources";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import RecordingSettings from "./RecordingSettings";
 import RecordingLibrary from "./RecordingLibrary";
@@ -36,6 +43,7 @@ import {
   Check,
   Cable,
   Disc3,
+  ListMusic,
 } from "lucide-react";
 import { api, rawApi, ApiError } from "./api";
 import type {
@@ -143,6 +151,9 @@ export default function App({ active = true }: { active?: boolean }) {
   const { tag, country, language, sort, codec, bitrateMin } = filters;
   const [page, setPage] = useState(savedBrowse.page);
   const [favoritesPage, setFavoritesPage] = useState(0);
+  const [personalPage, setPersonalPage] = useState(0);
+  const [personalSource, setPersonalSource] = useState("");
+  const [personalCategory, setPersonalCategory] = useState("");
   useEffect(() => setFavoritesPage(0), [me.data?.id]);
   useEffect(
     () => saveBrowseState({ query, filters, page }),
@@ -165,6 +176,7 @@ export default function App({ active = true }: { active?: boolean }) {
     setQuery(value);
     setPage(0);
     setFavoritesPage(0);
+    setPersonalPage(0);
   }, []);
   const clearFilters = () => {
     setFilters({
@@ -235,6 +247,70 @@ export default function App({ active = true }: { active?: boolean }) {
     if (favoriteStations.data && favoriteStations.data.page !== favoritesPage)
       setFavoritesPage(favoriteStations.data.page);
   }, [favoriteStations.data, favoritesPage]);
+  const personalSources = useQuery({
+    queryKey: ["personal-sources", me.data?.id],
+    queryFn: () => api<PersonalSource[]>("/personal-sources"),
+    enabled: !!me.data && tab === "personal",
+  });
+  const personalStations = useQuery({
+    queryKey: [
+      "personal-stations",
+      "browse",
+      me.data?.id,
+      query,
+      personalPage,
+      personalSource,
+      personalCategory,
+    ],
+    queryFn: ({ signal }) =>
+      api<PersonalPage>(
+        `/personal-stations?${new URLSearchParams({ q: query, page: String(personalPage), ...(personalSource ? { source_id: personalSource } : {}), category: personalCategory })}`,
+        "GET",
+        undefined,
+        signal,
+      ),
+    enabled: !!me.data && tab === "personal" && active,
+  });
+  useEffect(() => {
+    if (personalStations.data && personalStations.data.page !== personalPage)
+      setPersonalPage(personalStations.data.page);
+  }, [personalStations.data, personalPage]);
+  useEffect(() => {
+    const update = async (change: SourceChange) => {
+      if (change.owner !== me.data?.id) return;
+      void cache.invalidateQueries({ queryKey: ["personal-sources"] });
+      void cache.invalidateQueries({ queryKey: ["personal-stations"] });
+      void cache.invalidateQueries({ queryKey: ["favorites"] });
+      if (!selected?.personal) return;
+      const id = selected.id;
+      if (change.all || change.stationId === id) {
+        setSelected((current) => (current?.id === id ? null : current));
+        return;
+      }
+      if (change.sourceId === selected.source_id) {
+        try {
+          await api(`/personal-stations/${id}`);
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 404)
+            setSelected((current) => (current?.id === id ? null : current));
+        }
+      }
+    };
+    const event = (event: Event) =>
+      void update((event as CustomEvent<SourceChange>).detail);
+    window.addEventListener(SOURCE_CHANGE, event);
+    const channel =
+      typeof BroadcastChannel !== "undefined"
+        ? new BroadcastChannel(SOURCE_CHANGE)
+        : null;
+    if (channel)
+      channel.onmessage = (message) =>
+        void update(message.data as SourceChange);
+    return () => {
+      window.removeEventListener(SOURCE_CHANGE, event);
+      channel?.close();
+    };
+  }, [me.data?.id, selected, cache]);
   const savedIds = new Set(favorites.data?.ids || []);
   const proxyTest = useMutation({
     mutationFn: () =>
@@ -249,11 +325,21 @@ export default function App({ active = true }: { active?: boolean }) {
     mutationFn: ({
       station,
       saved,
+      userId,
     }: {
       station: Station;
       saved: boolean;
       userId: number;
-    }) => api(`/favorites/${station.id}`, saved ? "DELETE" : "PUT"),
+    }) =>
+      station.personal
+        ? api(
+            `/favorites/${station.id}`,
+            saved ? "DELETE" : "PUT",
+            undefined,
+            undefined,
+            { "X-Meow-Owner": String(userId) },
+          )
+        : api(`/favorites/${station.id}`, saved ? "DELETE" : "PUT"),
     onSuccess: () => {
       void cache.invalidateQueries({
         queryKey: ["favorites"],
@@ -313,6 +399,9 @@ export default function App({ active = true }: { active?: boolean }) {
       setRelay(false);
       setSelected(null);
       setTab("discover");
+      setPersonalPage(0);
+      setPersonalSource("");
+      setPersonalCategory("");
       setProfileOpen(false);
       setRecordingsOpen(false);
     } catch (e) {
@@ -377,16 +466,32 @@ export default function App({ active = true }: { active?: boolean }) {
   const visible =
     tab === "favorites"
       ? favoriteStations.data?.items || []
-      : stations.data || [];
-  const currentQuery = tab === "favorites" ? favoriteStations : stations;
+      : tab === "personal"
+        ? personalStations.data?.items || []
+        : stations.data || [];
+  const currentQuery =
+    tab === "favorites"
+      ? favoriteStations
+      : tab === "personal"
+        ? personalStations
+        : stations;
   const currentPage =
-    tab === "favorites" ? (favoriteStations.data?.page ?? favoritesPage) : page;
+    tab === "favorites"
+      ? (favoriteStations.data?.page ?? favoritesPage)
+      : tab === "personal"
+        ? (personalStations.data?.page ?? personalPage)
+        : page;
   const favoritePageCount = Math.max(
     1,
     Math.ceil((favoriteStations.data?.total || 0) / 24),
   );
+  const personalPageCount = Math.max(
+    1,
+    Math.ceil((personalStations.data?.total || 0) / 24),
+  );
   const changePage = (next: number) => {
     if (tab === "favorites") setFavoritesPage(next);
+    else if (tab === "personal") setPersonalPage(next);
     else setPage(next);
   };
   const setupNeeded = setup.data?.initialized === false;
@@ -534,6 +639,16 @@ export default function App({ active = true }: { active?: boolean }) {
                   <Disc3 size={17} />
                   {tr("录音管理")}
                 </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  onSelect={() =>
+                    navigate(
+                      me.data ? "/sources" : "/login?returnTo=%2Fsources",
+                    )
+                  }
+                >
+                  <ListMusic size={17} />
+                  {tr("个人电台源")}
+                </DropdownMenu.Item>
                 <DropdownMenu.Separator />
                 {me.data ? (
                   <DropdownMenu.Item
@@ -636,7 +751,15 @@ export default function App({ active = true }: { active?: boolean }) {
                 }}
               >
                 <Globe2 size={18} />
-                {tr("发现电台")}
+                {tr("系统电台")}
+              </button>
+              <button
+                role="tab"
+                aria-selected={tab === "personal"}
+                onClick={() => setTab("personal")}
+              >
+                <ListMusic size={18} />
+                {tr("个人电台")}
               </button>
               <button
                 role="tab"
@@ -661,6 +784,19 @@ export default function App({ active = true }: { active?: boolean }) {
                 onChange={setSearch}
                 onCommit={commitSearch}
               />
+              {tab === "personal" && active && me.data && (
+                <PersonalFilters
+                  userId={me.data.id}
+                  sources={personalSources.data || []}
+                  sourceId={personalSource}
+                  category={personalCategory}
+                  onApply={(source, category) => {
+                    setPersonalSource(source);
+                    setPersonalCategory(category);
+                    setPersonalPage(0);
+                  }}
+                />
+              )}
               {tab === "discover" && active && (
                 <StationFilters
                   value={filters}
@@ -684,18 +820,29 @@ export default function App({ active = true }: { active?: boolean }) {
                 : tr("正在寻找电台…")
               : currentQuery.isSuccess
                 ? tr("{{v0}} {{v1}} 个电台", {
-                    v0: tab === "favorites" ? tr("收藏中匹配") : tr("本页找到"),
+                    v0:
+                      tab === "favorites"
+                        ? tr("收藏中匹配")
+                        : tab === "personal"
+                          ? tr("个人源中匹配")
+                          : tr("本页找到"),
                     v1:
                       tab === "favorites"
                         ? favoriteStations.data?.total || 0
-                        : visible.length,
+                        : tab === "personal"
+                          ? personalStations.data?.total || 0
+                          : visible.length,
                   })
                 : ""}
           </p>
-          {tab === "favorites" && !me.data ? (
+          {(tab === "favorites" || tab === "personal") && !me.data ? (
             <div className="empty-state">
               <Heart size={30} />
-              <h3>{tr("登录后查看收藏")}</h3>
+              <h3>
+                {tab === "personal"
+                  ? tr("登录后查看个人电台")
+                  : tr("登录后查看收藏")}
+              </h3>
               <p>{tr("登录后，收藏会跟随你的账号保存。")}</p>
               <button
                 className="primary"
@@ -740,6 +887,33 @@ export default function App({ active = true }: { active?: boolean }) {
                 <RotateCw size={16} />
                 {tr("重新连接")}
               </button>
+            </div>
+          ) : tab === "personal" && !visible.length ? (
+            <div className="empty-state">
+              <ListMusic size={30} />
+              <h3>{tr("没有匹配的个人电台")}</h3>
+              <p>{tr("导入个人源，或调整搜索与分类筛选。")}</p>
+              <div className="empty-actions">
+                <button
+                  className="primary"
+                  onClick={() => navigate("/sources")}
+                >
+                  {tr("管理个人电台源")}
+                </button>
+                {(query || personalSource || personalCategory) && (
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      setSearch("");
+                      commitSearch("");
+                      setPersonalSource("");
+                      setPersonalCategory("");
+                    }}
+                  >
+                    {tr("清除筛选条件")}
+                  </button>
+                )}
+              </div>
             </div>
           ) : !visible.length ? (
             <div className="empty-state">
@@ -815,12 +989,23 @@ export default function App({ active = true }: { active?: boolean }) {
                     <span className="station-info">
                       <strong>{s.name}</strong>
                       <span>
-                        {s.country || tr("世界电台")}
+                        {s.country ||
+                          (s.personal
+                            ? s.source_name || tr("个人源")
+                            : tr("世界电台"))}
                         <span className="separator"> / </span>
                         {s.tags.split(",").filter(Boolean)[0] || "Radio"}
                       </span>
                       <span className="station-quality">
                         {s.codec || "AUDIO"}
+                        {s.personal && (
+                          <span
+                            className="personal-source-badge"
+                            title={s.source_name}
+                          >
+                            {tr("个人源")}
+                          </span>
+                        )}
                         {s.bitrate ? ` · ${s.bitrate} kbps` : ""}
                         {s.id === selected?.id ? tr(" · 已选台") : ""}
                       </span>
@@ -865,10 +1050,16 @@ export default function App({ active = true }: { active?: boolean }) {
                         pages: favoritePageCount,
                         total: favoriteStations.data?.total || 0,
                       })
-                    : tr("第 {{v0}} 页 · {{v1}} 个频道", {
-                        v0: currentPage + 1,
-                        v1: visible.length,
-                      })}
+                    : tab === "personal"
+                      ? tr("第 {{page}} / {{pages}} 页 · {{count}} 个电台", {
+                          page: currentPage + 1,
+                          pages: personalPageCount,
+                          count: personalStations.data?.total || 0,
+                        })
+                      : tr("第 {{v0}} 页 · {{v1}} 个频道", {
+                          v0: currentPage + 1,
+                          v1: visible.length,
+                        })}
               </span>
               <div>
                 <button
@@ -886,7 +1077,9 @@ export default function App({ active = true }: { active?: boolean }) {
                     currentQuery.isFetching ||
                     (tab === "favorites"
                       ? currentPage + 1 >= favoritePageCount
-                      : visible.length < 24 || currentPage >= 416)
+                      : tab === "personal"
+                        ? currentPage + 1 >= personalPageCount
+                        : visible.length < 24 || currentPage >= 416)
                   }
                   onClick={() => changePage(currentPage + 1)}
                 >

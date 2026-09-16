@@ -58,3 +58,12 @@ Final requested capabilities: simplified Chinese/English UI with persistent pref
 Nine receiver skins; each new skin has a separate stylesheet. User menu: Personal options, System settings, Recordings, Sign out. Personal options has exactly Profile (nickname/avatar) and Change password tabs. System settings keeps Themes and Settings tabs with playback/recording preferences, proxy diagnostic and version. Recording management is a separate dialog. Temporary station/server playback does not change the saved default; current relay is controlled with an icon-only toggle and accessible tooltip.
 
 Recordings are captured from same-origin relayed audio and uploaded under record/<username>/UUID; avatar files use avatar/<username>.webp. Owners are authenticated per request and upload identity is checked against captured owner. Stopping/changing station saves the previous segment; resume never automatically restarts recording. Stream recovery uses bounded backoff and respects pause, library playback and absolute sleep deadline.
+
+
+## v0.3.0 personal sources
+
+Owner-bound URL/file JSON sources with independent /sources management, format guide and example download. Home separates system/personal catalogs; favorites combine them with explicit personal-origin badges. Stable source-local station identities survive successful refreshes; failures retain the previous snapshot. All source mutations validate the captured owner header. Deletes cascade only corresponding personal favorites.
+
+Multiple URLs per station, category paths, legacy allowlisted header/reuse suffixes; HTTP(S) audio/HLS/FLV, HTML/JSON/JSONP resolution and RTMP(S)/RTSP(S)/MMS/MMST/MMSH ingress. Server FFmpeg normalizes output to MP3/128k. Public-network pinning and redirect validation extend to every media resource. No imported shell commands or third-party JavaScript execution. Docker bundles FFmpeg; native installs require it.
+
+Invalid import addresses and complete runtime validation failures appear in confirmation dialogs. Nothing is silently removed. Clearing c/d from A=[b,c,d] retains A=[b] and its favorite; only empty stations cascade-delete. Busy/missing media components are not invalid addresses. Confirmation is bound to the reviewed snapshot/current candidate identity; refresh or deletion cancels validation. Closing/navigating away cancels active scans.

@@ -5,17 +5,21 @@ import "./playback-route.css";
 export default function PlaybackRoute({
   relay,
   proxyConfigured,
+  personal = false,
   directAllowed,
   onChange,
 }: {
   relay: boolean;
   proxyConfigured: boolean;
+  personal?: boolean;
   directAllowed: boolean;
   onChange: (relay: boolean) => void;
 }) {
   const required = relay && !directAllowed;
   const description = required
-    ? tr("HTTPS 页面上的 HTTP 电台需要服务器中转。")
+    ? personal
+      ? tr("个人源由服务器解析和播放。")
+      : tr("HTTPS 页面上的 HTTP 电台需要服务器中转。")
     : relay
       ? proxyConfigured
         ? tr("中转已开启，服务器使用出站代理。点击切换为直连。")

@@ -42,6 +42,19 @@ pub trait Transport: Send + Sync {
         url: &'a Url,
         range: Option<&'a HeaderValue>,
     ) -> Pin<Box<dyn Future<Output = Result<Upstream>> + Send + 'a>>;
+    fn get_media<'a>(
+        &'a self,
+        url: &'a Url,
+        range: Option<&'a HeaderValue>,
+        headers: &'a HeaderMap,
+    ) -> Pin<Box<dyn Future<Output = Result<Upstream>> + Send + 'a>> {
+        Box::pin(async move {
+            if !headers.is_empty() {
+                return Err(AppError::bad("传输不支持自定义请求头"));
+            }
+            self.get(url, range).await
+        })
+    }
 }
 
 #[derive(Clone)]
@@ -50,9 +63,9 @@ pub struct NetworkTransport {
     tls: Arc<ClientConfig>,
 }
 
-trait Io: AsyncRead + AsyncWrite + Unpin + Send {}
+pub trait Io: AsyncRead + AsyncWrite + Unpin + Send {}
 impl<T: AsyncRead + AsyncWrite + Unpin + Send> Io for T {}
-type BoxIo = Box<dyn Io>;
+pub type BoxIo = Box<dyn Io>;
 
 // A dropped relay body must also stop its connection task, including idle streams.
 struct Connection(JoinHandle<()>);
@@ -80,6 +93,18 @@ impl NetworkTransport {
 
     async fn fetch(&self, url: &Url, range: Option<&HeaderValue>) -> Result<Upstream> {
         let (host, port) = validate_url(url)?;
+        self.fetch_checked(url, range, &HeaderMap::new(), host, port)
+            .await
+    }
+
+    async fn fetch_checked(
+        &self,
+        url: &Url,
+        range: Option<&HeaderValue>,
+        headers: &HeaderMap,
+        host: String,
+        port: u16,
+    ) -> Result<Upstream> {
         let addresses: Vec<SocketAddr> =
             timeout(DNS_TIMEOUT, tokio::net::lookup_host((host.as_str(), port)))
                 .await
@@ -104,7 +129,26 @@ impl NetworkTransport {
         })
         .await
         .map_err(|_| AppError::upstream())??;
-        let request = origin_request(url, range)?;
+        let mut request = origin_request(url, range)?;
+        for name in headers.keys() {
+            request.headers_mut().remove(name);
+        }
+        for (name, value) in headers {
+            if !matches!(
+                name.as_str(),
+                "user-agent"
+                    | "referer"
+                    | "origin"
+                    | "accept"
+                    | "accept-language"
+                    | "icy-metadata"
+                    | "pragma"
+                    | "range"
+            ) {
+                return Err(AppError::bad("不支持的媒体请求头"));
+            }
+            request.headers_mut().append(name, value.clone());
+        }
         let (response, connection) = exchange(io, request).await?;
         let (parts, body) = response.into_parts();
         let stream = futures_util::stream::unfold(
@@ -131,6 +175,35 @@ impl NetworkTransport {
             headers: parts.headers,
             body: Body::from_stream(stream),
         })
+    }
+
+    /// Resolve once, reject any non-public answer, and dial the pinned address.
+    /// Configured proxies receive only a checked IP; TLS retains original SNI.
+    pub async fn open_media(&self, url: &Url) -> Result<BoxIo> {
+        let (host, port) = validate_media_target(url)?;
+        let addresses: Vec<SocketAddr> =
+            timeout(DNS_TIMEOUT, tokio::net::lookup_host((host.as_str(), port)))
+                .await
+                .map_err(|_| AppError::upstream())?
+                .map_err(|_| AppError::upstream())?
+                .collect();
+        validate_addresses(&addresses)?;
+        let proxy = self
+            .proxy
+            .as_deref()
+            .map(Url::parse)
+            .transpose()
+            .map_err(|_| AppError::upstream())?;
+        timeout(CONNECT_TIMEOUT, async {
+            for address in addresses {
+                if let Ok(io) = self.dial(url, &host, address, proxy.as_ref()).await {
+                    return Ok(io);
+                }
+            }
+            Err(AppError::upstream())
+        })
+        .await
+        .map_err(|_| AppError::upstream())?
     }
 
     async fn dial(
@@ -202,10 +275,21 @@ impl NetworkTransport {
     }
 
     async fn target_tls(&self, io: BoxIo, url: &Url, host: &str) -> Result<BoxIo> {
-        if url.scheme() == "https" {
-            self.tls(io, host).await
-        } else {
-            Ok(io)
+        match url.scheme() {
+            "https" => self.tls(io, host).await,
+            "rtmps" | "rtsps" => {
+                // Legacy TLS endpoints do not speak HTTP ALPN.
+                let mut config = (*self.tls).clone();
+                config.alpn_protocols.clear();
+                let name =
+                    ServerName::try_from(host.to_owned()).map_err(|_| AppError::upstream())?;
+                let stream = TlsConnector::from(Arc::new(config))
+                    .connect(name, io)
+                    .await
+                    .map_err(|_| AppError::upstream())?;
+                Ok(Box::new(stream))
+            }
+            _ => Ok(io),
         }
     }
 
@@ -227,6 +311,55 @@ impl Transport for NetworkTransport {
     ) -> Pin<Box<dyn Future<Output = Result<Upstream>> + Send + 'a>> {
         Box::pin(self.fetch(url, range))
     }
+    fn get_media<'a>(
+        &'a self,
+        url: &'a Url,
+        range: Option<&'a HeaderValue>,
+        headers: &'a HeaderMap,
+    ) -> Pin<Box<dyn Future<Output = Result<Upstream>> + Send + 'a>> {
+        Box::pin(async move {
+            let (host, port) = validate_media_url(url)?;
+            self.fetch_checked(url, range, headers, host, port).await
+        })
+    }
+}
+
+pub fn validate_media_url(url: &Url) -> Result<(String, u16)> {
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err(AppError::bad("媒体资源必须使用 HTTP 或 HTTPS"));
+    }
+    validate_media_target(url)
+}
+
+pub fn validate_media_target(url: &Url) -> Result<(String, u16)> {
+    if !url.username().is_empty() || url.password().is_some() {
+        return Err(AppError::bad("媒体地址不能包含账号密码"));
+    }
+    let default = match url.scheme() {
+        "http" | "mmsh" => 80,
+        "https" | "rtmps" => 443,
+        "rtmp" => 1935,
+        "rtsp" => 554,
+        "rtsps" => 322,
+        "mms" | "mmst" => 1755,
+        _ => return Err(AppError::bad("不支持此媒体协议")),
+    };
+    let host = url
+        .host_str()
+        .ok_or_else(|| AppError::bad("媒体地址缺少主机名"))?
+        .trim_matches(['[', ']'])
+        .to_owned();
+    let port = url.port().unwrap_or(default);
+    if !matches!(port, 80 | 82 | 443 | 322 | 554 | 1024..=65535) {
+        return Err(AppError::bad("媒体端口不在支持范围内"));
+    }
+    if host
+        .parse::<std::net::IpAddr>()
+        .is_ok_and(|ip| !crate::relay::public_ip(ip))
+    {
+        return Err(AppError::bad("媒体仅允许公共互联网地址"));
+    }
+    Ok((host, port))
 }
 
 fn validate_url(url: &Url) -> Result<(String, u16)> {
@@ -688,5 +821,94 @@ mod tests {
             .unwrap_or_else(|_| panic!("SOCKS request failed"));
         assert_eq!(response.body.collect().await.unwrap().to_bytes(), "audio");
         server.await.unwrap();
+    }
+    #[test]
+    fn personal_ports_are_separate_from_public_radio_policy() {
+        for url in [
+            "http://radio.example:82/live",
+            "https://radio.example:10443/live",
+            "rtsp://radio.example/live",
+            "rtsps://radio.example/live",
+            "mmst://radio.example/live",
+            "rtmps://radio.example/live",
+        ] {
+            assert!(
+                validate_media_target(&Url::parse(url).unwrap()).is_ok(),
+                "{url}"
+            );
+        }
+        assert!(validate_url(&Url::parse("http://radio.example:82/live").unwrap()).is_err());
+        for url in [
+            "http://radio.example:22/",
+            "http://127.0.0.1/",
+            "rtsp://[::1]/",
+            "mmst://169.254.169.254/",
+            "file:///etc/passwd",
+        ] {
+            assert!(
+                validate_media_target(&Url::parse(url).unwrap()).is_err(),
+                "{url}"
+            );
+        }
+    }
+    #[tokio::test]
+    async fn media_headers_override_default_and_preserve_mmsh_pragmas() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let transport = transport(Some(format!("http://{}", listener.local_addr().unwrap())));
+        let server = tokio::spawn(async move {
+            let (mut io, _) = listener.accept().await.unwrap();
+            assert!(
+                read_headers(&mut io)
+                    .await
+                    .starts_with("CONNECT 1.1.1.1:82 HTTP/1.1")
+            );
+            io.write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+                .await
+                .unwrap();
+            let request = read_headers(&mut io).await.to_ascii_lowercase();
+            assert_eq!(request.matches("user-agent:").count(), 1);
+            assert!(request.contains("user-agent: nsplayer/12"));
+            assert_eq!(request.matches("pragma:").count(), 2);
+            assert!(request.contains("host: 1.1.1.1:82"));
+            assert!(request.contains("referer: https://radio.example/"));
+            assert!(!request.contains("authorization:"));
+            io.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")
+                .await
+                .unwrap();
+        });
+        let mut headers = HeaderMap::new();
+        headers.insert(header::USER_AGENT, HeaderValue::from_static("NSPlayer/12"));
+        headers.insert(
+            header::REFERER,
+            HeaderValue::from_static("https://radio.example/"),
+        );
+        headers.append(header::PRAGMA, HeaderValue::from_static("no-cache"));
+        headers.append(header::PRAGMA, HeaderValue::from_static("xPlayStrm=1"));
+        let response = transport
+            .get_media(
+                &Url::parse("http://1.1.1.1:82/audio").unwrap(),
+                None,
+                &headers,
+            )
+            .await
+            .unwrap_or_else(|_| panic!());
+        assert_eq!(response.status, StatusCode::OK);
+        server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn legacy_private_target_rejected_before_proxy_dial() {
+        let transport = transport(Some("http://127.0.0.1:1".into()));
+        for url in [
+            "rtmp://127.0.0.1/live",
+            "rtsp://10.0.0.1/live",
+            "mmst://169.254.169.254/live",
+        ] {
+            assert!(
+                transport
+                    .open_media(&Url::parse(url).unwrap())
+                    .await
+                    .is_err()
+            );
+        }
     }
 }
