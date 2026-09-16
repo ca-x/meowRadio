@@ -1,0 +1,69 @@
+/* Settings dialog layout, navigation and theme grid. */
+.modal.settings-modal {
+  width: min(820px, calc(100vw - 48px));
+  max-height: calc(100dvh - 48px);
+  padding: 30px;
+}
+.settings-tab-list {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  margin: 22px 0;
+  border-radius: 10px;
+  background: var(--surface-raised);
+}
+.settings-tab-list button {
+  flex: 1;
+  min-height: 44px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+.settings-tab-list button[data-state="active"] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 4px #00000012;
+}
+.settings-tab-panel {
+  min-width: 0;
+}
+.modal.settings-modal .theme-options {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.modal.settings-modal .theme-preview {
+  height: 78px;
+}
+.settings-modal .theme-options label {
+  padding: 12px;
+}
+.settings-modal .theme-options strong {
+  font-size: 13px;
+}
+.settings-modal .app-version {
+  border-top: 1px solid var(--line);
+  padding-top: 15px;
+}
+.settings-modal > .primary {
+  margin-left: auto;
+}
+.settings-tab-panel .connection-status {
+  margin-top: 0;
+}
+@media (max-width: 600px) {
+  .modal.settings-modal {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+    padding: 22px 18px;
+  }
+  .modal.settings-modal .theme-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .modal.settings-modal .theme-preview {
+    height: 62px;
+  }
+}

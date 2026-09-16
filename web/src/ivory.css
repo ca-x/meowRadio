@@ -1,0 +1,250 @@
+/* ivory receiver: palette, material and responsive layout. */
+
+:root[data-theme="ivory"][data-color="light"] {
+  --canvas: #e3e2dc;
+  --surface: #f4f1e7;
+  --field: #fdfcf8;
+  --surface-raised: #e1ddcf;
+  --ink: #36362f;
+  --muted: #646459;
+  --accent: #8c4522;
+  --accent-ink: #fff;
+  --line: #c4c1b4;
+  --control-line: #8e8a7c;
+  --selected: #ece2d0;
+  --material: linear-gradient(145deg, #fbf8ee, #e9e5d9);
+  --paper: var(--surface);
+}
+:root[data-theme="ivory"][data-color="dark"] {
+  --canvas: #212321;
+  --surface: #30322e;
+  --field: #252723;
+  --surface-raised: #43443c;
+  --ink: #efeee5;
+  --muted: #bebeb1;
+  --accent: #efb78d;
+  --accent-ink: #261c14;
+  --line: #53554a;
+  --control-line: #8d8f80;
+  --selected: #454338;
+  --material: linear-gradient(145deg, #373a33, #2c2f2a);
+  --paper: var(--surface);
+}
+.tuning-receiver--ivory {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.38fr) minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  gap: 25px 28px;
+  max-width: 940px;
+  margin: 25px auto;
+  padding: 28px;
+  border: 1px solid #ffffff60;
+  border-radius: 22px;
+  background: linear-gradient(155deg, #fffdf4, #e3decd);
+  color: #353730;
+  --device-ink: #353730;
+  --device-muted: #686b5d;
+  box-shadow:
+    inset 0 2px 2px #fff9,
+    inset 0 -2px 2px #aaa48e44,
+    12px 24px 45px #38372928;
+}
+.ivory-grille {
+  grid-row: 1/4;
+  border-radius: 8px;
+  background: radial-gradient(
+      circle at 50% 42%,
+      #353a32 0 1.1px,
+      #878776 1.5px,
+      #fff8 2.3px,
+      transparent 3px
+    )
+    0 0/9px 9px;
+  box-shadow: inset 0 1px 4px #665b4020;
+}
+.tuning-receiver--ivory .tuning-display {
+  border: 1px solid #cac8bd;
+  background: #fafcf9;
+  border-radius: 6px;
+  padding: 19px 20px 16px;
+  box-shadow:
+    inset 0 1px 5px #66685544,
+    0 1px #fff9;
+}
+.tuning-receiver--ivory .tuning-display-top {
+  font-size: 11px;
+}
+.tuning-receiver--ivory .tuning-number {
+  margin: 16px 0;
+}
+.tuning-receiver--ivory .tuning-display h2 {
+  font-size: 22px;
+}
+.tuning-receiver--ivory .tuning-metadata {
+  font-size: 11px;
+}
+.tuning-receiver--ivory .tuning-transport {
+  padding: 0 12px;
+}
+.tuning-receiver--ivory .tuning-transport button {
+  width: 68px;
+  height: 68px;
+  border: 1px solid #fff9;
+  background: linear-gradient(150deg, #fffdf2, #e8e3d4);
+  color: #75776a;
+  box-shadow:
+    3px 5px 7px #79776340,
+    inset 0 1px 1px #fff;
+}
+.tuning-receiver--ivory .tuning-transport button svg {
+  filter: drop-shadow(0 1px 0 #fff);
+}
+.tuning-receiver--ivory .tuning-tools {
+  border-top: 1px solid #a8a18d40;
+  padding-top: 6px;
+}
+.tuning-receiver--ivory .tuning-save {
+  background: none;
+  border: 0;
+}
+.tuning-receiver--ivory .tuning-volume {
+  color: var(--device-muted);
+}
+.digital-number {
+  display: flex;
+  gap: 6px;
+  height: 54px;
+}
+.digital-digit {
+  position: relative;
+  width: 31px;
+  height: 54px;
+}
+.segment {
+  position: absolute;
+  background: currentColor;
+  opacity: 0.05;
+}
+.segment[data-lit="true"] {
+  opacity: 0.9;
+}
+.segment-a,
+.segment-d,
+.segment-g {
+  left: 4px;
+  width: 23px;
+  height: 4px;
+  clip-path: polygon(0 50%, 10% 0, 90% 0, 100% 50%, 90% 100%, 10% 100%);
+}
+.segment-a {
+  top: 0;
+}
+.segment-g {
+  top: 25px;
+}
+.segment-d {
+  bottom: 0;
+}
+.segment-b,
+.segment-c,
+.segment-e,
+.segment-f {
+  width: 4px;
+  height: 22px;
+  clip-path: polygon(50% 0, 100% 10%, 100% 90%, 50% 100%, 0 90%, 0 10%);
+}
+.segment-b {
+  right: 0;
+  top: 3px;
+}
+.segment-c {
+  right: 0;
+  bottom: 3px;
+}
+.segment-e {
+  left: 0;
+  bottom: 3px;
+}
+.segment-f {
+  left: 0;
+  top: 3px;
+}
+:root[data-theme="ivory"][data-color="dark"] .tuning-receiver--ivory {
+  background: linear-gradient(155deg, #494c42, #30332c);
+  border-color: #727768;
+  box-shadow:
+    inset 0 1px #a7af9244,
+    10px 24px 40px #0005;
+  --device-ink: #ebeddd;
+  --device-muted: #bcc1ab;
+  color: var(--device-ink);
+}
+:root[data-theme="ivory"][data-color="dark"] .ivory-grille {
+  background: radial-gradient(
+      circle at 50% 42%,
+      #131810 0 1.5px,
+      #788165 2px,
+      transparent 3px
+    )
+    0 0/9px 9px;
+}
+:root[data-theme="ivory"][data-color="dark"] .tuning-display {
+  background: #1e281d;
+  border-color: #6c765f;
+  box-shadow: inset 0 2px 8px #0008;
+  color: #d6e5ac;
+}
+:root[data-theme="ivory"][data-color="dark"] .tuning-transport button {
+  background: linear-gradient(155deg, #5b604e, #3e4338);
+  border-color: #798269;
+  color: #e0e7d2;
+  box-shadow:
+    3px 5px 7px #0005,
+    inset 0 1px #aabb8155;
+}
+:root[data-theme="ivory"][data-color="dark"] .tuning-transport button svg {
+  filter: none;
+}
+.ivory-preview {
+  background:
+    radial-gradient(circle, #727364 1px, transparent 2px) 5px 5px/6px 6px,
+    #ece8da;
+  box-shadow: inset -75px 0 #f7f8f2;
+}
+:root[data-theme="ivory"] :is(.sleep-timer-dialog, .sleep-timer-final) {
+  --timer-rim: #aaa68f;
+  --timer-face: var(--surface);
+  --timer-ink: var(--ink);
+  --timer-hand: var(--accent);
+}
+@media (max-width: 760px) {
+  .tuning-receiver--ivory {
+    grid-template-columns: minmax(54px, 0.26fr) minmax(0, 1fr);
+    gap: 20px 15px;
+    padding: 18px;
+    border-radius: 16px;
+  }
+  .tuning-receiver--ivory .tuning-display {
+    padding: 14px 12px;
+  }
+  .tuning-receiver--ivory .tuning-display-top > span:first-child {
+    display: none;
+  }
+  .tuning-receiver--ivory .tuning-display h2 {
+    font-size: 18px;
+  }
+  .tuning-receiver--ivory .tuning-transport {
+    padding: 0;
+    gap: 10px;
+  }
+  .tuning-receiver--ivory .tuning-transport button {
+    width: 52px;
+    height: 52px;
+  }
+  .tuning-receiver--ivory .tuning-tools {
+    grid-column: 1/-1;
+  }
+  .ivory-grille {
+    grid-row: 1/3;
+  }
+}

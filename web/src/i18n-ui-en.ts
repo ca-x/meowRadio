@@ -1,4 +1,160 @@
 const uiEnglish: Record<string, string> = {
+  "中转已开启，服务器使用出站代理。点击切换为直连。":
+    "Relay is on and the server uses its outbound proxy. Click to connect directly.",
+  "中转已开启。点击切换为浏览器直连。":
+    "Server relay is on. Click to connect directly from your browser.",
+  "浏览器直连。点击开启本次服务器中转。":
+    "Connected directly from your browser. Click to use server relay for this playback.",
+
+  中转: "Relay",
+  "关闭中转，改为浏览器直连；当前服务器使用出站代理。":
+    "Turn relay off to connect from your browser. The server currently uses its outbound proxy.",
+  "关闭中转，改为浏览器直连。":
+    "Turn relay off to connect directly from your browser.",
+  "开启中转，本次通过服务器播放。":
+    "Turn relay on to play through the server this time.",
+
+  "连接中断，正在重新连接…": "Connection interrupted. Reconnecting\u2026",
+  "自动重连 {{attempt}} / {{total}}": "Reconnecting {{attempt}} / {{total}}",
+  "连接多次失败，请按电源键重试，或换一个频道。":
+    "Repeated connection failures. Press play to retry or choose another station.",
+  "当前播放方式：{{mode}}": "Current playback route: {{mode}}",
+  服务器经代理中转: "Server relay via proxy",
+  服务器中转: "Server relay",
+  本次播放: "This playback",
+  "HTTPS 页面上的 HTTP 电台需要服务器中转。":
+    "HTTP stations require server relay on HTTPS pages.",
+  "服务器已配置出站代理。": "The server uses its configured outbound proxy.",
+  "服务器直接连接电台。": "The server connects directly to the station.",
+  设为默认播放方式: "Set as default playback route",
+  已是默认播放方式: "Already the default playback route",
+  默认播放方式已更新: "Default playback route updated",
+  "本次经服务器收听 {{v0}}": "Play {{v0}} via server this time",
+  "仅本次经服务器中转，不更改默认方式":
+    "Use server relay for this playback without changing the default",
+
+  "登录账号已变化，请下载录音后重新登录。":
+    "Your signed-in account has changed. Download this recording and sign in again.",
+  "登录账号已变化，请重新登录后重试。":
+    "Your signed-in account has changed. Sign in again and retry.",
+  用户菜单: "User menu",
+  个人选项: "Personal options",
+  系统设置: "System settings",
+  录音管理: "Recordings",
+  "个人资料与账号安全。": "Your profile and account security.",
+  "试听、重命名或下载自己的录音。":
+    "Listen to, rename or download your recordings.",
+  "外观与播放偏好保存在此浏览器，部署状态由管理员配置。":
+    "Appearance and playback preferences are saved in this browser. Deployment settings are managed by the administrator.",
+  录制参数: "Recording preferences",
+  个人选项分类: "Personal options categories",
+  个人资料: "Profile",
+  修改密码: "Change password",
+  当前头像: "Current avatar",
+  "正在上传…": "Uploading\u2026",
+  更换头像: "Change avatar",
+  上传头像: "Upload avatar",
+  "支持 JPG、PNG、WebP，最大 5 MiB。新头像会替换旧头像。":
+    "JPG, PNG or WebP, up to 5 MiB. The new image replaces your current avatar.",
+  昵称: "Nickname",
+  "昵称为空时显示用户名，登录用户名保持不变。":
+    "Leave blank to display your username. Your sign-in username stays the same.",
+  保存资料: "Save profile",
+  当前密码: "Current password",
+  新密码: "New password",
+  确认新密码: "Confirm new password",
+  "修改后保留当前登录，其他设备需要重新登录。":
+    "You will stay signed in here. Other devices must sign in again.",
+  "正在修改…": "Updating\u2026",
+  个人资料已保存: "Profile saved",
+  头像已更新: "Avatar updated",
+  "密码已修改，其他设备需要重新登录。":
+    "Password changed. Other devices must sign in again.",
+  "头像图片不能超过 5 MiB": "Avatar images must be no larger than 5 MiB.",
+  两次输入的新密码不一致: "The new passwords do not match.",
+  "登录后管理自己的录音。": "Sign in to manage your recordings.",
+  我的录音: "My recordings",
+  仅当前账号可访问: "Only your account can access these recordings",
+  "{{count}} 份录音": "{{count}} recordings",
+  停止试听: "Stop preview",
+  "正在加载录音…": "Loading recordings\u2026",
+  还没有录音: "No recordings yet",
+  "在播放器点击录制，结束后会保存到这里。":
+    "Start recording in the player. Finished recordings will appear here.",
+  "试听 {{title}}": "Listen to {{title}}",
+  "下载 {{title}}": "Download {{title}}",
+  下载: "Download",
+  "重命名 {{title}}": "Rename {{title}}",
+  重命名: "Rename",
+  "删除 {{title}}": "Delete {{title}}",
+  删除: "Delete",
+  录音名称: "Recording name",
+  保存名称: "Save name",
+  取消: "Cancel",
+  "删除这份录音？此操作无法撤销。":
+    "Delete this recording? This cannot be undone.",
+  "正在删除…": "Deleting\u2026",
+  确认删除: "Delete recording",
+  "录音暂时无法播放，请重试或下载。":
+    "This recording could not be played. Try again or download it.",
+  "账号已切换，请将本次录音下载到本机。":
+    "Your account has changed. Download this recording to your device.",
+  "上传失败，请重试": "Upload failed. Try again.",
+  "昵称不能超过 60 个字符或包含控制字符":
+    "Nicknames must be at most 60 characters without control characters.",
+  "头像需为有效的 PNG、JPEG 或 WebP 图片，尺寸不能超过 4096 像素":
+    "Use a valid PNG, JPEG or WebP image no larger than 4096 pixels per side.",
+  "头像不能超过 5 MiB": "Avatar images must be no larger than 5 MiB.",
+  "头像保存失败，请重试": "Avatar could not be saved. Try again.",
+  "头像处理繁忙，请稍后重试": "Avatar processing is busy. Try again later.",
+  "头像上传超时，请重试": "Avatar upload timed out. Try again.",
+  尚未设置头像: "No avatar has been set",
+  当前密码不正确: "The current password is incorrect.",
+  "密码修改失败，请重试": "Password could not be changed. Try again.",
+  "账号状态已变化，请重新登录后重试":
+    "Account state changed. Sign in again and retry.",
+  "录音文件操作失败，请重试": "Recording file operation failed. Try again.",
+  录音不存在: "Recording not found",
+  "仅支持 WebM、Ogg 或 MP4 音频录音":
+    "Only WebM, Ogg or MP4 audio recordings are supported.",
+  "单条录音不能超过 100 MiB": "A recording cannot exceed 100 MiB.",
+  录音编号无效: "Invalid recording ID",
+  录音名称或电台名称无效或过长:
+    "Recording or station name is invalid or too long.",
+  用户名无法用于录音存储: "This username cannot be used for recording storage.",
+  录音存储目录无效: "Invalid recording storage directory",
+  "录音时长必须在 0–3600 秒之间":
+    "Recording duration must be between 0 and 3600 seconds.",
+  录音长度无效: "Invalid recording length",
+  录音上传中断: "Recording upload interrupted",
+  "录音上传繁忙，请稍后重试": "Recording uploads are busy. Try again later.",
+  录音上传超时: "Recording upload timed out",
+  "个人录音空间已达到 1 GiB，请先删除部分录音":
+    "Your recordings have reached 1 GiB. Delete some recordings first.",
+  录音保存失败: "Recording could not be saved",
+  录音删除失败: "Recording could not be deleted",
+  录音名称无效: "Invalid recording name",
+
+  弧光调谐: "Arc dial",
+  "弧形刻度，石墨面板": "Curved dial, graphite panel",
+  奶油白: "Ivory",
+  "细孔扬声器，数码显示窗": "Perforated speaker, digital display",
+  黑白刻度: "Monochrome",
+  "黑白留白，一抹红色": "Black and white, a red pointer",
+  银色复古: "Silver retro",
+  "金属转盘，橙色开关": "Metal dial, orange switch",
+  红屏像素: "Pixel red",
+  "珊瑚红屏，像素读数": "Coral display, pixel numbers",
+  "频道 {{number}}": "Channel {{number}}",
+  "频道 {{number}}：{{name}}": "Channel {{number}}: {{name}}",
+  网络电台: "Internet radio",
+  从下方列表选择电台: "Choose a station from the list below",
+  拖动刻度换台: "Drag the scale to tune",
+  设置分类: "Settings categories",
+  主题: "Themes",
+  设置: "Settings",
+  银色复古收音机: "Silver retro receiver",
+
   请选择电台: "Select a station",
   切换浅色: "Switch to light mode",
   切换暗色: "Switch to dark mode",

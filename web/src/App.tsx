@@ -1,3 +1,11 @@
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import RecordingSettings from "./RecordingSettings";
+import RecordingLibrary from "./RecordingLibrary";
+import ProfileSettings from "./ProfileSettings";
+import type { RecordedAudio } from "./useRecording";
+import "./user-menu.css";
+import * as Tabs from "@radix-ui/react-tabs";
+import { receiverThemes } from "./receiverThemes";
 import TransientCopy from "./TransientCopy";
 import i18n, { tr, setLanguage } from "./i18n";
 import { useTranslation } from "react-i18next";
@@ -27,8 +35,9 @@ import {
   RotateCw,
   Check,
   Cable,
+  Disc3,
 } from "lucide-react";
-import { api, ApiError } from "./api";
+import { api, rawApi, ApiError } from "./api";
 import type { Station, User, Settings } from "./api";
 import Player from "./Player";
 import AccountForm from "./AccountForm";
@@ -45,19 +54,21 @@ function Modal({
   title,
   description,
   children,
+  className = "",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   description: string;
   children: ReactNode;
+  className?: string;
 }) {
   useTranslation();
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="modal-overlay" />
-        <Dialog.Content className="modal">
+        <Dialog.Content className={`modal ${className}`}>
           <Dialog.Title>{title}</Dialog.Title>
           <Dialog.Description>{description}</Dialog.Description>
           {children}
@@ -100,7 +111,9 @@ export default function App({ active = true }: { active?: boolean }) {
       }),
     retry: false,
   });
-  const [accountOpen, setAccountOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [recordingsOpen, setRecordingsOpen] = useState(false);
+  const [pauseRequest, setPauseRequest] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const pendingAction = useRef<{
     kind: "save" | "proxy";
@@ -112,7 +125,8 @@ export default function App({ active = true }: { active?: boolean }) {
   useEffect(() => {
     if (!active) {
       setSettingsOpen(false);
-      setAccountOpen(false);
+      setProfileOpen(false);
+      setRecordingsOpen(false);
     }
   }, [active]);
   const [tab, setTab] = useState("discover");
@@ -256,7 +270,8 @@ export default function App({ active = true }: { active?: boolean }) {
     cache.setQueryData(["setup"], {
       initialized: true,
     });
-    setAccountOpen(false);
+    setProfileOpen(false);
+    setRecordingsOpen(false);
     setNotice({
       key: "已登录：{{v0}}",
       values: {
@@ -274,7 +289,8 @@ export default function App({ active = true }: { active?: boolean }) {
       setRelay(false);
       setSelected(null);
       setTab("discover");
-      setAccountOpen(false);
+      setProfileOpen(false);
+      setRecordingsOpen(false);
     } catch (e) {
       setNotice((e as Error).message);
     }
@@ -306,14 +322,8 @@ export default function App({ active = true }: { active?: boolean }) {
     selectStation(station);
   };
   const changePlaybackPreference = (value: boolean) => {
+    // Defaults apply to the next station; the player toggle controls this stream.
     setRelayPreference(value);
-    if (selected) {
-      if (value || requiresRelay(selected)) chooseProxy(selected);
-      else {
-        setRelay(false);
-        selectStation(selected);
-      }
-    }
   };
   const relayAuthRequired = () => {
     if (!selected) return;
@@ -446,23 +456,72 @@ export default function App({ active = true }: { active?: boolean }) {
               {colorMode === "dark" ? <Sun size={19} /> : <Moon size={19} />}
             </button>
           </div>
-          <button
-            className="icon-button"
-            onClick={() => setSettingsOpen(true)}
-            aria-label={tr("连接设置")}
-          >
-            <Settings2 size={20} />
-          </button>
-          <button
-            className="account-button"
-            aria-label={me.data?.username || tr("登录 / 注册")}
-            onClick={() =>
-              me.data ? setAccountOpen(true) : navigate("/login")
-            }
-          >
-            <UserRound size={17} />
-            <span>{me.data?.username || tr("登录 / 注册")}</span>
-          </button>
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button
+                className="account-button"
+                aria-label={
+                  me.data?.nickname || me.data?.username || tr("用户菜单")
+                }
+              >
+                {me.data?.avatar_url ? (
+                  <img
+                    className="account-avatar"
+                    src={me.data.avatar_url}
+                    alt=""
+                  />
+                ) : (
+                  <UserRound size={18} />
+                )}
+                <span>
+                  {me.data?.nickname || me.data?.username || tr("登录 / 注册")}
+                </span>
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                className="user-menu"
+                sideOffset={8}
+                align="end"
+              >
+                <DropdownMenu.Item
+                  onSelect={() =>
+                    me.data ? setProfileOpen(true) : navigate("/login")
+                  }
+                >
+                  <UserRound size={17} />
+                  {tr("个人选项")}
+                </DropdownMenu.Item>
+                <DropdownMenu.Item onSelect={() => setSettingsOpen(true)}>
+                  <Settings2 size={17} />
+                  {tr("系统设置")}
+                </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  onSelect={() =>
+                    me.data ? setRecordingsOpen(true) : navigate("/login")
+                  }
+                >
+                  <Disc3 size={17} />
+                  {tr("录音管理")}
+                </DropdownMenu.Item>
+                <DropdownMenu.Separator />
+                {me.data ? (
+                  <DropdownMenu.Item
+                    className="menu-signout"
+                    onSelect={() => void logout()}
+                  >
+                    <LogOut size={17} />
+                    {tr("退出登录")}
+                  </DropdownMenu.Item>
+                ) : (
+                  <DropdownMenu.Item onSelect={() => navigate("/login")}>
+                    <UserRound size={17} />
+                    {tr("登录 / 注册")}
+                  </DropdownMenu.Item>
+                )}
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
         </nav>
       </header>
       <main aria-label={tr("收听首页")}>
@@ -485,11 +544,51 @@ export default function App({ active = true }: { active?: boolean }) {
         )}
         <Player
           active={active}
+          ownerKey={me.data ? String(me.data.id) : undefined}
+          pauseRequest={pauseRequest}
+          onRequestRelay={() => selected && chooseProxy(selected)}
+          onRecorded={async (file: RecordedAudio) => {
+            if (!me.data || file.ownerKey !== String(me.data.id))
+              throw new Error("账号已切换，请将本次录音下载到本机。");
+            const params = new URLSearchParams({
+              title:
+                file.stationName.slice(0, 120) +
+                " · " +
+                new Date().toLocaleString(),
+              station_id: file.stationId,
+              station_name: file.stationName.slice(0, 250),
+              duration_seconds: String(file.durationSeconds),
+            });
+            await rawApi(
+              "/recordings?" + params,
+              file.blob,
+              file.mimeType,
+              file.ownerKey,
+            );
+            await cache.invalidateQueries({
+              queryKey: ["recordings", me.data.id],
+            });
+          }}
+          onOpenRecordings={() => {
+            setRecordingsOpen(true);
+            setSettingsOpen(false);
+            setProfileOpen(false);
+          }}
           theme={theme}
           station={selected}
           stations={visible}
+          favorites={favorites.data || []}
           onSelect={choose}
           relay={relay}
+          proxyConfigured={settings.data?.proxy_configured}
+          onRouteChange={(value) => {
+            if (!selected) return;
+            if (value || requiresRelay(selected)) chooseProxy(selected);
+            else {
+              setRelay(false);
+              selectStation(selected);
+            }
+          }}
           onRelayAuthRequired={relayAuthRequired}
           saved={!!selected && savedIds.has(selected.id)}
           onSave={() => selected && toggleSave(selected)}
@@ -567,7 +666,7 @@ export default function App({ active = true }: { active?: boolean }) {
               <button
                 className="primary"
                 onClick={() =>
-                  me.data ? setAccountOpen(true) : navigate("/login")
+                  me.data ? setProfileOpen(true) : navigate("/login")
                 }
               >
                 {tr("登录并收藏")}
@@ -698,13 +797,12 @@ export default function App({ active = true }: { active?: boolean }) {
                   </button>
                   <div className="station-actions">
                     <button
-                      className={`proxy-play icon-button ${s.id === selected?.id && relay ? "active" : ""}`}
-                      aria-label={tr("代理收听 {{v0}}", {
+                      className="proxy-play icon-button"
+                      aria-label={tr("本次经服务器收听 {{v0}}", {
                         v0: s.name,
                       })}
-                      aria-pressed={s.id === selected?.id && relay}
-                      title={tr("通过服务端收听")}
-                      onClick={() => chooseProxy(s, true)}
+                      title={tr("仅本次经服务器中转，不更改默认方式")}
+                      onClick={() => chooseProxy(s)}
                     >
                       <Cable size={18} />
                     </button>
@@ -770,171 +868,156 @@ export default function App({ active = true }: { active?: boolean }) {
         </a>
       </footer>
       <Modal
-        open={accountOpen}
-        onOpenChange={setAccountOpen}
-        title={tr("我的收音机")}
-        description={
-          me.data
-            ? tr("{{v0}} · {{v1}}", {
-                v0: me.data.username,
-                v1: me.data.role === "admin" ? tr("管理员") : tr("听众"),
-              })
-            : ""
-        }
+        open={profileOpen && !!me.data}
+        onOpenChange={setProfileOpen}
+        title={tr("个人选项")}
+        description={tr("个人资料与账号安全。")}
       >
         {me.data && (
-          <div className="account-summary">
-            <Heart size={24} />
-            <p>
-              {tr("已收藏")}
-              {favorites.data?.length || 0}
-              {tr("个电台")}
-            </p>
-            <button className="secondary" onClick={() => void logout()}>
-              <LogOut size={16} />
-              {tr("退出登录")}
-            </button>
-          </div>
+          <ProfileSettings
+            key={me.data.id}
+            user={me.data}
+            onUpdate={(user) => cache.setQueryData(["me"], user)}
+          />
         )}
       </Modal>
       <Modal
+        className="settings-modal"
+        open={recordingsOpen}
+        onOpenChange={setRecordingsOpen}
+        title={tr("录音管理")}
+        description={tr("试听、重命名或下载自己的录音。")}
+      >
+        <RecordingLibrary
+          userId={me.data?.id}
+          enabled={recordingsOpen}
+          onPlay={() => setPauseRequest((v) => v + 1)}
+          onSignIn={() => {
+            setRecordingsOpen(false);
+            navigate("/login");
+          }}
+        />
+      </Modal>
+      <Modal
+        className="settings-modal"
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
-        title={tr("外观与连接")}
-        description={tr("收音机外观与播放方式。")}
+        title={tr("系统设置")}
+        description={tr("外观与播放偏好保存在此浏览器，部署状态由管理员配置。")}
       >
-        <fieldset className="theme-options">
-          <legend>{tr("收音机主题")}</legend>
-          <label className={theme === "walnut" ? "chosen" : ""}>
-            <input
-              type="radio"
-              name="theme"
-              checked={theme === "walnut"}
-              onChange={() => setTheme("walnut")}
-            />
-            <span className="theme-preview walnut-preview" />
-            <strong>{tr("胡桃木")}</strong>
-            <small>
-              <TransientCopy>{tr("温暖的模拟时光")}</TransientCopy>
-            </small>
-          </label>
-          <label className={theme === "vitreous" ? "chosen" : ""}>
-            <input
-              type="radio"
-              name="theme"
-              checked={theme === "vitreous"}
-              onChange={() => setTheme("vitreous")}
-            />
-            <span className="theme-preview vitreous-preview" />
-            <strong>{tr("琉璃夜色")}</strong>
-            <small>
-              <TransientCopy>{tr("青紫光影，玻璃质感")}</TransientCopy>
-            </small>
-          </label>
-          <label className={theme === "led" ? "chosen" : ""}>
-            <input
-              type="radio"
-              name="theme"
-              checked={theme === "led"}
-              onChange={() => setTheme("led")}
-            />
-            <span className="theme-preview led-preview" />
-            <strong>{tr("光阵立方")}</strong>
-            <small>
-              <TransientCopy>{tr("三面 LED，点亮声音")}</TransientCopy>
-            </small>
-          </label>
-          <label className={theme === "soft" ? "chosen" : ""}>
-            <input
-              type="radio"
-              name="theme"
-              checked={theme === "soft"}
-              onChange={() => setTheme("soft")}
-            />
-            <span className="theme-preview soft-preview" />
-            <strong>{tr("云白拟态")}</strong>
-            <small>
-              <TransientCopy>{tr("轻柔机身，圆形调谐")}</TransientCopy>
-            </small>
-          </label>
-        </fieldset>
-        <div className="connection-status">
-          <Cable size={22} />
-          <div>
-            <strong>
-              {settings.data?.proxy_configured
-                ? tr("服务端代理已配置")
-                : tr("服务端使用直接连接")}
-            </strong>
-            <p>{tr("代理地址与凭据由部署者管理。")}</p>
-          </div>
-        </div>
-        <div className="proxy-test">
-          <button
-            className="secondary"
-            disabled={!me.data || proxyTest.isPending}
-            onClick={() => proxyTest.mutate()}
-          >
-            {proxyTest.isPending
-              ? tr("正在测试…")
-              : settings.data?.proxy_configured
-                ? tr("测试代理连接")
-                : tr("测试服务端连接")}
-          </button>
-          {!me.data && <p>{tr("登录后可测试连接。")}</p>}
-          {proxyTest.data && (
-            <p role="status">
-              {proxyTest.data.mode === "proxy"
-                ? tr("代理连接正常")
-                : tr("服务端外网连接正常")}{" "}
-              · {proxyTest.data.elapsed_ms} ms
+        <Tabs.Root defaultValue="themes" className="settings-tabs">
+          <Tabs.List className="settings-tab-list" aria-label={tr("设置分类")}>
+            <Tabs.Trigger value="themes">{tr("主题")}</Tabs.Trigger>
+            <Tabs.Trigger value="connection">{tr("设置")}</Tabs.Trigger>
+          </Tabs.List>
+          <Tabs.Content value="themes" className="settings-tab-panel">
+            <fieldset className="theme-options">
+              <legend className="sr-only">{tr("收音机主题")}</legend>
+              {receiverThemes.map((item) => (
+                <label
+                  key={item.id}
+                  className={theme === item.id ? "chosen" : ""}
+                >
+                  <input
+                    type="radio"
+                    name="theme"
+                    checked={theme === item.id}
+                    onChange={() => setTheme(item.id)}
+                  />
+                  <span
+                    className={`theme-preview ${item.id}-preview`}
+                    aria-hidden="true"
+                  />
+                  <strong>{tr(item.name)}</strong>
+                  <small>
+                    <TransientCopy>{tr(item.description)}</TransientCopy>
+                  </small>
+                </label>
+              ))}
+            </fieldset>
+          </Tabs.Content>
+          <Tabs.Content value="connection" className="settings-tab-panel">
+            <div className="connection-status">
+              <Cable size={22} />
+              <div>
+                <strong>
+                  {settings.data?.proxy_configured
+                    ? tr("服务端代理已配置")
+                    : tr("服务端使用直接连接")}
+                </strong>
+                <p>{tr("代理地址与凭据由部署者管理。")}</p>
+              </div>
+            </div>
+            <div className="proxy-test">
+              <button
+                className="secondary"
+                disabled={!me.data || proxyTest.isPending}
+                onClick={() => proxyTest.mutate()}
+              >
+                {proxyTest.isPending
+                  ? tr("正在测试…")
+                  : settings.data?.proxy_configured
+                    ? tr("测试代理连接")
+                    : tr("测试服务端连接")}
+              </button>
+              {!me.data && <p>{tr("登录后可测试连接。")}</p>}
+              {proxyTest.data && (
+                <p role="status">
+                  {proxyTest.data.mode === "proxy"
+                    ? tr("代理连接正常")
+                    : tr("服务端外网连接正常")}{" "}
+                  · {proxyTest.data.elapsed_ms} ms
+                </p>
+              )}
+              {proxyTest.error && (
+                <p className="form-error" role="alert">
+                  {tr(proxyTest.error.message)}
+                </p>
+              )}
+            </div>
+            <fieldset className="playback-options">
+              <legend>{tr("默认播放方式")}</legend>
+              <label>
+                <input
+                  type="radio"
+                  name="connection"
+                  checked={!relayPreference}
+                  onChange={() => changePlaybackPreference(false)}
+                />
+                <span>
+                  <strong>{tr("浏览器直连")}</strong>
+                  <small>{tr("直接连接电台，支持普通音频和 HLS。")}</small>
+                </span>
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="connection"
+                  checked={relayPreference}
+                  disabled={!me.data || !settings.data?.relay_enabled}
+                  onChange={() => changePlaybackPreference(true)}
+                />
+                <span>
+                  <strong>{tr("服务端中转")}</strong>
+                  <small>
+                    {!me.data
+                      ? tr("登录后可用。")
+                      : !settings.data?.relay_enabled
+                        ? tr("此服务未启用中转。")
+                        : tr("适合 HTTP 电台或浏览器无法连接的音源。")}
+                  </small>
+                </span>
+              </label>
+            </fieldset>
+            <p className="settings-note">
+              {tr(
+                "服务器播放支持 HTTP、HTTPS 和 HLS；HTTPS 页面上的 HTTP 音源会自动中转。",
+              )}
             </p>
-          )}
-          {proxyTest.error && (
-            <p className="form-error" role="alert">
-              {tr(proxyTest.error.message)}
-            </p>
-          )}
-        </div>
-        <fieldset className="playback-options">
-          <legend>{tr("默认播放方式")}</legend>
-          <label>
-            <input
-              type="radio"
-              name="connection"
-              checked={!relayPreference}
-              onChange={() => changePlaybackPreference(false)}
-            />
-            <span>
-              <strong>{tr("浏览器直连")}</strong>
-              <small>{tr("直接连接电台，支持普通音频和 HLS。")}</small>
-            </span>
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="connection"
-              checked={relayPreference}
-              disabled={!me.data || !settings.data?.relay_enabled}
-              onChange={() => changePlaybackPreference(true)}
-            />
-            <span>
-              <strong>{tr("服务端中转")}</strong>
-              <small>
-                {!me.data
-                  ? tr("登录后可用。")
-                  : !settings.data?.relay_enabled
-                    ? tr("此服务未启用中转。")
-                    : tr("适合 HTTP 电台或浏览器无法连接的音源。")}
-              </small>
-            </span>
-          </label>
-        </fieldset>
-        <p className="settings-note">
-          {tr(
-            "服务器播放支持 HTTP、HTTPS 和 HLS；HTTPS 页面上的 HTTP 音源会自动中转。",
-          )}
-        </p>
+            <h3 className="settings-section-title">{tr("录制参数")}</h3>
+            <RecordingSettings />
+          </Tabs.Content>
+        </Tabs.Root>
         <p className="app-version">
           {tr("版本")} {settings.data?.version || "—"}
         </p>

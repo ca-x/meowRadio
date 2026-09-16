@@ -1,0 +1,40 @@
+.user-menu {
+  min-width: 196px;
+  max-width: calc(100vw - 24px);
+  z-index: 90;
+  padding: 6px;
+  border: 1px solid var(--control-line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 12px 35px #00000022;
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+}
+.user-menu [role="menuitem"] {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  font-size: 13px;
+  cursor: pointer;
+  outline: 0;
+}
+.user-menu [role="menuitem"][data-highlighted] {
+  background: var(--surface-raised);
+}
+.user-menu [role="separator"] {
+  height: 1px;
+  background: var(--line);
+  margin: 5px 8px;
+}
+.account-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.user-menu .menu-signout {
+  color: var(--danger);
+}

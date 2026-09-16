@@ -1,0 +1,190 @@
+.recording-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.recording-control[hidden] {
+  display: none;
+}
+.recording-entry {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--control-line, var(--line));
+  border-radius: 8px;
+  background: var(--surface, var(--paper));
+  color: var(--ink);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.recording-entry[data-recording="true"] {
+  color: #bf4239;
+}
+.recording-entry[data-recording="true"] svg {
+  animation: recording-pulse 2s ease-in-out infinite;
+}
+.recording-entry:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.recording-hint,
+.recording-notice {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.recording-hint button {
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: var(--surface, var(--paper));
+}
+.recording-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  background: #080b1066;
+}
+.recording-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 111;
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid var(--control-line, var(--line));
+  border-radius: 16px;
+  color: var(--ink);
+  background: var(--surface, var(--paper));
+  box-shadow: 0 18px 60px #0004;
+}
+.recording-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.recording-heading h2 {
+  margin: 0;
+  font-size: 21px;
+}
+.recording-close {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.recording-dialog > p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.recording-dialog .recording-filename {
+  margin-top: 24px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.recording-file-meta {
+  font-variant-numeric: tabular-nums;
+}
+.recording-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}
+.recording-actions button,
+.recording-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: 13px;
+  border: 1px solid var(--control-line, var(--line));
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--field, var(--paper));
+  text-decoration: none;
+}
+.recording-actions .recording-download {
+  background: var(--accent);
+  color: var(--accent-ink, #fff);
+  border-color: var(--accent);
+}
+.recording-dialog .recording-save-hint {
+  margin-bottom: 0;
+  font-size: 11px;
+}
+.recording-settings {
+  display: grid;
+  grid-template-columns: 1fr minmax(140px, 1fr);
+  align-items: center;
+  gap: 18px 16px;
+}
+.recording-settings p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.recording-settings label {
+  color: var(--ink);
+  font-size: 13px;
+}
+.recording-settings select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--control-line, var(--line));
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--field, var(--paper));
+}
+@keyframes recording-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .recording-entry[data-recording="true"] svg {
+    animation: none;
+  }
+}
+@media (max-width: 380px) {
+  .recording-settings {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .recording-dialog {
+    padding: 18px;
+  }
+}
+.recording-retry {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--control-line, var(--line));
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--field, var(--paper));
+}
+
+:root[data-color="dark"] .recording-entry[data-recording="true"] {
+  color: #ff9b92;
+}

@@ -1,0 +1,44 @@
+/* retro receiver: palette, material and responsive layout. */
+
+:root[data-theme="retro"][data-color="light"] {
+  --canvas: #e3e2dc;
+  --surface: #f4f1e7;
+  --field: #fdfcf8;
+  --surface-raised: #e1ddcf;
+  --ink: #36362f;
+  --muted: #646459;
+  --accent: #8c4522;
+  --accent-ink: #fff;
+  --line: #c4c1b4;
+  --control-line: #8e8a7c;
+  --selected: #ece2d0;
+  --material: linear-gradient(145deg, #fbf8ee, #e9e5d9);
+  --paper: var(--surface);
+}
+:root[data-theme="retro"][data-color="dark"] {
+  --canvas: #212321;
+  --surface: #30322e;
+  --field: #252723;
+  --surface-raised: #43443c;
+  --ink: #efeee5;
+  --muted: #bebeb1;
+  --accent: #efb78d;
+  --accent-ink: #261c14;
+  --line: #53554a;
+  --control-line: #8d8f80;
+  --selected: #454338;
+  --material: linear-gradient(145deg, #373a33, #2c2f2a);
+  --paper: var(--surface);
+}
+.retro-preview {
+  background:
+    radial-gradient(
+      circle at 50% 45%,
+      #bebfbb 0 17px,
+      #65655e 18px,
+      #e5e5df 19px 24px,
+      transparent 25px
+    ),
+    linear-gradient(110deg, #dddeda, #969a96);
+  border-bottom: 7px solid #363b35;
+}

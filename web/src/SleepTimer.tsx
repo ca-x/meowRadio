@@ -7,7 +7,12 @@ import { useTranslation } from "react-i18next";
 import { tr } from "./i18n";
 import "./sleep-timer.css";
 
-type Props = { onExpire: () => void; disabled?: boolean; active?: boolean };
+type Props = {
+  onExpire: () => void;
+  disabled?: boolean;
+  active?: boolean;
+  onDeadlineChange?: (deadline: number | null) => void;
+};
 type Hand = "hour" | "minute";
 const reminderOptions = [0, 10, 30, 60, 300] as const;
 function savedReminder() {
@@ -29,6 +34,7 @@ function countdown(milliseconds: number) {
 
 export default function SleepTimer({
   onExpire,
+  onDeadlineChange,
   disabled = false,
   active = true,
 }: Props) {
@@ -52,6 +58,8 @@ export default function SleepTimer({
   >(null);
   const activeDeadline = useRef<number | null>(null);
   const expire = useRef(onExpire);
+  const deadlineChanged = useRef(onDeadlineChange);
+  deadlineChanged.current = onDeadlineChange;
   const face = useRef<HTMLDivElement>(null);
   const drag = useRef<{ hand: Hand; pointer: number } | null>(null);
   const hintId = useId();
@@ -96,6 +104,7 @@ export default function SleepTimer({
         setDeadline(null);
         setNotice("expired");
         expire.current();
+        deadlineChanged.current?.(null);
       }
     };
     tick();
@@ -149,6 +158,7 @@ export default function SleepTimer({
     if (!total || disabled) return;
     const target = Date.now() + total * 60_000;
     activeDeadline.current = target;
+    deadlineChanged.current?.(target);
     finalAnnounced.current = false;
     suppressFinalMotion.current = true;
     setFinalMotion(false);
@@ -159,6 +169,7 @@ export default function SleepTimer({
   };
   const cancel = () => {
     activeDeadline.current = null;
+    deadlineChanged.current?.(null);
     setDeadline(null);
     setRemaining(0);
     setNotice("cancelled");

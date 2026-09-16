@@ -1,4 +1,10 @@
-export type User = { id: number; username: string; role: "admin" | "user" };
+export type User = {
+  id: number;
+  username: string;
+  role: "admin" | "user";
+  nickname?: string | null;
+  avatar_url?: string | null;
+};
 export type Station = {
   id: string;
   name: string;
@@ -29,12 +35,17 @@ export async function api<T>(
   method = "GET",
   body?: unknown,
   signal?: AbortSignal,
+  extraHeaders?: Record<string, string>,
 ): Promise<T> {
   const response = await fetch(`/api${path}`, {
     method,
     credentials: "same-origin",
     signal,
-    headers: { "Content-Type": "application/json", "X-Meow-Request": "1" },
+    headers: {
+      "Content-Type": "application/json",
+      "X-Meow-Request": "1",
+      ...extraHeaders,
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) {
@@ -53,4 +64,28 @@ export function playableUrl(raw: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/** Raw authenticated uploads keep Blob data out of JSON and preserve MIME. */
+export async function rawApi<T>(
+  path: string,
+  body: Blob,
+  contentType: string,
+  ownerKey?: string,
+): Promise<T> {
+  const response = await fetch(`/api${path}`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": contentType,
+      "X-Meow-Request": "1",
+      ...(ownerKey ? { "X-Meow-Owner": ownerKey } : {}),
+    },
+    body,
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, data.error || "上传失败，请重试");
+  }
+  return response.json();
 }

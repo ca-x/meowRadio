@@ -57,6 +57,8 @@ async fn create(s: &AppState, mut c: Credentials) -> Result<User> {
         id,
         username: c.username,
         role: "admin".into(),
+        nickname: None,
+        avatar_url: None,
     })
 }
 pub async fn initialize(

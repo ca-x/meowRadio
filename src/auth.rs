@@ -17,6 +17,8 @@ pub struct User {
     pub id: i64,
     pub username: String,
     pub role: String,
+    pub nickname: Option<String>,
+    pub avatar_url: Option<String>,
 }
 #[derive(Deserialize)]
 pub struct Credentials {
@@ -27,7 +29,7 @@ pub struct Credentials {
 pub fn token_hash(token: &str) -> String {
     format!("{:x}", Sha256::digest(token.as_bytes()))
 }
-fn token(headers: &HeaderMap) -> Option<&str> {
+pub(crate) fn token(headers: &HeaderMap) -> Option<&str> {
     headers
         .get(header::COOKIE)?
         .to_str()
@@ -37,7 +39,7 @@ fn token(headers: &HeaderMap) -> Option<&str> {
 }
 pub async fn user(state: &AppState, headers: &HeaderMap) -> Result<User> {
     let hash = token_hash(token(headers).ok_or_else(AppError::unauthorized)?);
-    sqlx::query_as::<_,User>("SELECT u.id, u.username, u.role FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>unixepoch()")
+    sqlx::query_as::<_,User>("SELECT u.id, u.username, u.role, u.nickname, CASE WHEN u.avatar_revision IS NOT NULL THEN '/api/profile/avatar?v=' || u.avatar_revision END AS avatar_url FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>unixepoch()")
         .bind(hash).fetch_optional(&state.db).await?.ok_or_else(AppError::unauthorized)
 }
 pub async fn me(State(state): State<AppState>, headers: HeaderMap) -> Result<Json<User>> {
@@ -45,6 +47,13 @@ pub async fn me(State(state): State<AppState>, headers: HeaderMap) -> Result<Jso
 }
 
 pub async fn create_session(state: &AppState, u: User) -> Result<(HeaderMap, Json<User>)> {
+    create_session_checked(state, u, None).await
+}
+async fn create_session_checked(
+    state: &AppState,
+    u: User,
+    expected_password_hash: Option<&str>,
+) -> Result<(HeaderMap, Json<User>)> {
     let mut bytes = [0u8; 32];
     OsRng.fill_bytes(&mut bytes);
     let token: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
@@ -52,13 +61,20 @@ pub async fn create_session(state: &AppState, u: User) -> Result<(HeaderMap, Jso
     sqlx::query("DELETE FROM sessions WHERE expires_at <= unixepoch()")
         .execute(&mut *tx)
         .await?;
-    sqlx::query(
-        "INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,unixepoch()+2592000)",
+    // Check the verified password again under the SQLite write lock so a login
+    // racing a password change cannot create a session from the old password.
+    let inserted = sqlx::query(
+        "INSERT INTO sessions(token_hash,user_id,expires_at) SELECT ?,id,unixepoch()+2592000 FROM users WHERE id=? AND (? IS NULL OR password_hash=?)",
     )
     .bind(token_hash(&token))
     .bind(u.id)
+    .bind(expected_password_hash)
+    .bind(expected_password_hash)
     .execute(&mut *tx)
     .await?;
+    if inserted.rows_affected() != 1 {
+        return Err(AppError(StatusCode::UNAUTHORIZED, "用户名或密码不正确"));
+    }
     tx.commit().await?;
     let mut headers = HeaderMap::new();
     let secure = if state.config.secure_cookie {
@@ -129,6 +145,8 @@ pub async fn register(
             id,
             username: c.username,
             role: "user".into(),
+            nickname: None,
+            avatar_url: None,
         },
     )
     .await
@@ -139,8 +157,8 @@ pub async fn login(
 ) -> Result<(HeaderMap, Json<User>)> {
     c.username = c.username.trim().to_lowercase();
     validate(&c)?;
-    let row = sqlx::query_as::<_, (i64, String, String, String)>(
-        "SELECT id,username,password_hash,role FROM users WHERE username=?",
+    let row = sqlx::query_as::<_, (i64, String, String, String, Option<String>, Option<String>)>(
+        "SELECT id,username,password_hash,role,nickname,CASE WHEN avatar_revision IS NOT NULL THEN '/api/profile/avatar?v=' || avatar_revision END FROM users WHERE username=?",
     )
     .bind(&c.username)
     .fetch_optional(&state.db)
@@ -162,9 +180,20 @@ pub async fn login(
     if !valid {
         return Err(AppError(StatusCode::UNAUTHORIZED, "用户名或密码不正确"));
     }
-    let (id, username, _, role) =
+    let (id, username, password_hash, role, nickname, avatar_url) =
         row.ok_or(AppError(StatusCode::UNAUTHORIZED, "用户名或密码不正确"))?;
-    create_session(&state, User { id, username, role }).await
+    create_session_checked(
+        &state,
+        User {
+            id,
+            username,
+            role,
+            nickname,
+            avatar_url,
+        },
+        Some(&password_hash),
+    )
+    .await
 }
 pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Result<HeaderMap> {
     if let Some(t) = token(&headers) {

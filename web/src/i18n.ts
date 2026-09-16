@@ -1,5 +1,6 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
+import recordingEnglish from "./i18n-recording-en";
 import english from "./i18n-ui-en";
 import timerEnglish from "./i18n-timer-en";
 function savedLanguage() {
@@ -20,6 +21,7 @@ void i18n.use(initReactI18next).init({
     en: {
       translation: {
         ...english,
+        ...recordingEnglish,
         ...timerEnglish,
         "{{count}} 小时_one": "{{count}} hour",
         "{{count}} 小时_other": "{{count}} hours",

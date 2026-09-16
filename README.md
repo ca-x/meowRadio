@@ -4,32 +4,34 @@
 
 把世界，调到喜欢的频道。Rust 编写的自托管网络收音机，React 界面直接嵌入二进制，使用 SQLite 保存账号与个人收藏。
 
-- **四套主题**：胡桃木拟物收音机、琉璃夜色玻璃播放器、光阵立方 LED 播放器（2D / 3D）、云白拟态圆盘收音机。每套外观均有独立浅色/暗色配色；切换不打断播放，偏好保存在当前浏览器。
+- **九套主题**：胡桃木拟物收音机、琉璃夜色玻璃播放器、光阵立方 LED 播放器（2D / 3D）、云白拟态圆盘收音机，以及弧光调谐、奶油白、黑白刻度、银色复古和红屏像素。每套外观均有独立浅色/暗色配色；切换不打断播放，偏好保存在当前浏览器。
 - **语言**：简体中文 / English，首页顶栏切换，控件、提示、登录页与筛选面板同步更新。电台名称保留目录原文。
 - **定时关闭**：拖动时针、分针选择时长，也可输入数字或使用 15/30/60/120 分钟预设。支持取消、重新设定；换台、切换外观和进入登录页不会重置计时。可设置关闭前 10 秒、30 秒、1 分钟或 5 分钟显示强调倒计时，也可关闭提示。
+- **录制与录音库**：浏览器通过服务端播放时可点击开始/停止录制；换台、暂停或定时结束会自动停止并上传。用户菜单内独立管理个人录音，支持应用内试听、重命名、下载和删除。系统设置提供浏览器支持的格式、目标码率和最长时长。
+- **个人资料**：用户菜单 → 个人选项，分为“个人资料”（昵称、头像）与“修改密码”两个页签；头像转换为 256×256 WebP 并覆盖旧文件。改密码需验证当前密码，保留当前登录并撤销其他设备会话。
 - **多用户**：独立 `/login` 页面完成用户名/密码登录与注册，独立收藏；Argon2id 密码、HttpOnly 会话 Cookie、过期与退出撤销。
 - **首次初始化**：环境变量创建首个管理员，或首次访问时使用设置向导。初始化只运行一次，不会因重启重置密码。
 - **世界电台**：基于 `radiobrowser` crate 和 Radio Browser API，支持名称、类型、国家筛选及分页。首页只保留筛选入口，点击后可按国家、语言、节目类型、排序及音质组合浏览，无需关键词。中文输入法选词完成后再搜索，支持 Enter 立即搜索和空结果恢复。`FM 104.2` / 全角频率写法会转换为电台名称中的频率关键词。
-- **收听**：播放、暂停、换台、音量；HLS 按需加载；HTTP/HTTPS 出站代理和可选的服务端音频中转。
+- **收听**：播放、暂停、换台、音量；HLS 按需加载；HTTP/HTTPS/SOCKS5 出站代理和可选的服务端音频中转。断流后按 2/4/8/16/30/30 秒重试，恢复网络或回到前台时检查播放；手动暂停、定时关闭不会触发自动恢复。
 - **状态保留**：点击首页、切换语言/配色不会打断收听；关键词、筛选、页码和默认播放方式保存在当前浏览器，设置内显示版本。
 - **懒猫集成**：仅检测到 LazyCat WebShell 时启用原生控制栏适配；Android 同步播放状态、元数据及播放/暂停/换台，iOS 适配状态栏与安全区域。普通浏览器跳过 SDK 加载与宿主调用。
 - **交付**：Linux / macOS / Windows 二进制，amd64/arm64 Docker，GitHub Actions 自动测试和发布。
 
 ## 界面
 
-四套外观均支持浅色/暗色；语言与深浅色在首页顶栏切换，外观主题保留在设置中，筛选条件在面板中展开。宣传文字首次进入可见区域时淡入，停留约 1.5 秒后淡出，不影响页面布局。
+九套外观均支持浅色/暗色；语言与深浅色在首页顶栏切换，外观主题在用户菜单的系统设置中，筛选条件在面板中展开。宣传文字首次进入可见区域时淡入，停留约 1.5 秒后淡出，不影响页面布局。
 
 ### PC 端
 
-| 胡桃木首页 | 英文暗色界面 | 时钟定时器 |
+| 弧光调谐 | 奶油白 | 主题选择 |
 | --- | --- | --- |
-| ![PC 胡桃木浅色首页](docs/screenshots/pc-home.png) | ![PC 光阵立方英文暗色](docs/screenshots/pc-english.png) | ![PC 琉璃主题时钟定时器](docs/screenshots/pc-timer.png) |
+| ![PC 弧光调谐暗色](docs/screenshots/pc-arc.png) | ![PC 奶油白浅色](docs/screenshots/pc-ivory.png) | ![PC 九套主题设置](docs/screenshots/pc-themes.png) |
 
 ### 移动端
 
-| 云白拟态首页 | 独立登录页 | 关闭前倒计时 |
+| 黑白刻度 | 银色复古 | 红屏像素 |
 | --- | --- | --- |
-| ![移动端云白拟态浅色首页](docs/screenshots/mobile-home.png) | ![移动端暗色独立登录页](docs/screenshots/mobile-login.png) | ![移动端强调倒计时](docs/screenshots/mobile-countdown.png) |
+| ![移动端黑白刻度](docs/screenshots/mobile-mono.png) | ![移动端银色复古](docs/screenshots/mobile-retro.png) | ![移动端红屏像素](docs/screenshots/mobile-signal.png) |
 
 ## Docker
 
@@ -76,6 +78,38 @@ MEOW_INIT_USERNAME=admin MEOW_INIT_PASSWORD="$RADIO_ADMIN_PASSWORD" ./meowradio
 
 “关闭前倒计时”决定何时显示更醒目的提示：关闭、10 秒、30 秒、1 分钟、5 分钟。提示跟随当前材质与配色，数字保持稳定，仅光晕有轻微呼吸效果；系统启用减少动态效果时保持静态。取消定时或计时结束后提示清除。提前提示偏好会保存，正在运行的定时仅属于当前页面会话，刷新/关闭页面会结束该会话；设备休眠时浏览器无法执行计时，恢复执行后会按已过的截止时间立即停止。
 
+## 用户菜单与个人数据
+
+用户菜单包含 **个人选项、系统设置、录音管理、退出登录**。个人选项只有两个页签：“个人资料”编辑昵称、头像；“修改密码”修改账号密码。系统设置单独提供九套主题、默认播放方式、代理诊断、录制参数和版本。主题样式按文件拆分，布局与公共控件分别维护，见 `web/src/receiverThemes.ts` 和各主题 CSS。
+
+登录用户名保持不变，昵称只用于显示。支持 PNG/JPEG/WebP 头像，最大 5 MiB、每边不超过 4096 像素；服务端裁剪为 256×256 WebP 后原子替换。Docker 默认文件布局：
+
+```text
+/data/
+├── meowradio.db
+├── avatar/
+│   └── alice.webp
+└── record/
+    └── alice/
+        └── <UUID>.webm
+```
+
+本地二进制默认使用 `data/`；头像和录音目录默认位于数据库同级。录音元数据与归属保存在 SQLite，文件不通过公共静态目录暴露。头像和录音 API 需要登录，用户只能操作自己的数据。
+
+## 录制与录音管理
+
+先通过电台旁或播放器下方的中转图标启用服务端播放，再点击播放器的圆形录制按钮；点击停止图标结束。换台、暂停、定时关闭或播放中断会自动结束当前录制，保存旧电台的信息。重连后需手动开始新的录制，不会把不同播放段悄悄合并。
+
+停止后自动上传至个人录音库，并保留本机下载入口。上传失败可重试或先下载；切换账号时禁止将之前的录音上传到新账号。录音管理可直接试听、重命名、下载、确认删除，试听时暂停直播，关闭管理窗口会停止试听。
+
+系统设置中的录制参数在下一次录制时生效：
+
+- 格式：按浏览器能力显示 WebM/Opus、Ogg/Opus 或 MP4/AAC；没有伪装为 MP3 的转码选项。
+- 目标码率：64、128、192、256 kbps，实际编码由浏览器决定。
+- 最长时长：5、15、30、60 分钟；每条最大 100 MiB，每用户总空间最大 1 GiB。
+
+录制使用浏览器 `captureStream` 和 `MediaRecorder`，不请求麦克风权限。仅对服务端中转音源启用；不支持这些 API 的浏览器会说明限制。页面关闭前请确认上传完成或下载；移动系统挂起网页时无法保证后台录制或播放持续运行，回到前台后播放器会检查是否需要重连。
+
 ## 配置
 
 程序从进程环境读取配置，**不会自动加载 `.env`**。`.env.example` 是示例；Compose 自动读取 `.env`，但仅将 `compose.yaml` 声明的项目传给容器。
@@ -84,6 +118,7 @@ MEOW_INIT_USERNAME=admin MEOW_INIT_PASSWORD="$RADIO_ADMIN_PASSWORD" ./meowradio
 | --- | --- | --- |
 | `MEOW_LISTEN` | `0.0.0.0:3000` | 监听地址 |
 | `MEOW_DATABASE` | `data/meowradio.db` | SQLite 文件，Docker 默认 `/data/meowradio.db` |
+| `MEOW_RECORDINGS_DIR` | 数据库同级的 `record` 目录 | 私人录音文件目录，Docker 默认 `/data/record/<用户名>/`；录音名称等信息保存在 SQLite |
 | `MEOW_INIT_USERNAME` | 未设置 | 首次初始化管理员用户名 |
 | `MEOW_INIT_PASSWORD` | 未设置 | 首次初始化管理员密码，10–128 字节 |
 | `MEOW_REGISTRATION` | `true` | 是否允许其他用户注册 |
@@ -97,9 +132,9 @@ MEOW_INIT_USERNAME=admin MEOW_INIT_PASSWORD="$RADIO_ADMIN_PASSWORD" ./meowradio
 
 ### 代理和收听方式
 
-点击页面右上角设置图标，在“外观与连接”中选择主题和收听方式，并用测试按钮检查连接。测试仅请求固定的外网 Radio Browser 状态接口，返回是否成功及耗时，不会返回代理凭据。
+点击右上角用户菜单 → “系统设置”，在“主题”和“设置”页签中选择外观、收听方式与录制参数，并用测试按钮检查连接。测试仅请求固定的外网 Radio Browser 状态接口，返回是否成功及耗时，不会返回代理凭据。
 
-电台列表中，点击电台名称按保存的默认方式播放；点击电台旁的代理图标则经服务端收听，并记住这一偏好（需要登录）。HTTPS 页面遇到 HTTP 音源时自动使用中转。配置 `MEOW_PROXY` 后使用该出站代理，否则通过服务器自身网络中转。
+电台列表中，点击电台名称按保存的默认方式播放；点击电台旁的中转图标只让本次播放经过服务器（需要登录），不会改写默认偏好。播放器下方的纯图标切换按钮表示中转开关，悬停或聚焦显示说明；系统设置中的“默认播放方式”会保存到浏览器，并用于后续选择的电台，不打断当前收听。HTTPS 页面遇到 HTTP 音源时自动使用中转。配置 `MEOW_PROXY` 后使用该出站代理，否则通过服务器自身网络中转。
 
 - **目录代理**：设置 `MEOW_PROXY` 后，搜索、频道解析和收听计数通过代理请求。代理地址和凭据不会下发到浏览器。
 - **浏览器直连**：音频由浏览器直接请求，不使用服务端代理；支持普通流和 HLS。电台须支持当前浏览器的编码；HLS 还需电台允许跨域请求。
@@ -108,11 +143,11 @@ MEOW_INIT_USERNAME=admin MEOW_INIT_PASSWORD="$RADIO_ADMIN_PASSWORD" ./meowradio
 - **出站代理**：HTTP/HTTPS 代理通过 CONNECT 连接已验证的目标 IP，代理须允许目标端口的 CONNECT；HTTP 请求保留原始 Host，HTTPS 保留原始 SNI 与证书校验。SOCKS5 同样传递已验证 IP，不启用远程 DNS。`socks5h` 未启用。
 - **HLS 边界**：支持常见直播与低延迟 HLS 资源；不支持带未展开变量的 URI 或非 HTTP(S) DRM 资源。每个播放列表上限 1 MiB，每个分片上限 64 MiB，签名链接 24 小时有效；服务重启后重新选台即可。
 
-Radio Browser 是社区维护目录，部分电台可能离线、地域受限或编码不被浏览器支持。页面会显示连接失败和重试入口。四种外观的电平/波形是随实际播放状态变化的装饰，暂停、缓冲、静音和页面隐藏时停止动态；减少动态效果下显示静态形状。这些装饰，不代表真实音频频谱，也不显示虚构 FM 频率。
+Radio Browser 是社区维护目录，部分电台可能离线、地域受限或编码不被浏览器支持。页面会显示连接失败和重试入口。各套外观的电平/波形是随实际播放状态变化的装饰，暂停、缓冲、静音和页面隐藏时停止动态；减少动态效果下显示静态形状。这些装饰，不代表真实音频频谱，也不显示虚构 FM 频率。
 
 ### 数据和备份
 
-SQLite 启用 WAL、外键和自动迁移。备份可停止服务后复制数据库；在线备份应使用 SQLite `.backup`，不要只复制正在写入的 `.db` 文件。数据卷应仅由服务用户访问。当前定位为单实例自托管服务。登录限流使用连接来源 IP，每分钟 12 次；反向代理后的用户会共享代理 IP 的额度。
+SQLite 启用 WAL、外键和自动迁移。完整备份应同时保留数据库、`record/` 和 `avatar/` 目录。可停止服务后复制数据卷；在线备份应使用 SQLite `.backup`，不要只复制正在写入的 `.db` 文件。数据卷应仅由服务用户访问。当前定位为单实例自托管服务。登录限流使用连接来源 IP，每分钟 12 次；反向代理后的用户会共享代理 IP 的额度。
 
 ## 本地开发
 
@@ -144,15 +179,15 @@ cargo audit
 CI 检查格式、Clippy、前后端测试、依赖审计、嵌入式二进制及非 root Docker 启动。推送与 `Cargo.toml` 版本一致的 `v*` 标签触发 Release：
 
 ```sh
-git tag v0.1.2
-git push origin v0.1.2
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 所有验证通过后，分别构建 Linux amd64/arm64、macOS amd64/arm64、Windows amd64，上传压缩包和 SHA256SUMS，并发布 `ghcr.io/ca-x/meowradio:<tag>`。正式版本同时更新 `latest`；预发布不覆盖 `latest`。本项目 GHCR 镜像已验证允许匿名拉取。仅需仓库内置 `GITHUB_TOKEN` 的 contents/packages 写权限。
 
 ## API
 
-所有修改请求需 `X-Meow-Request: 1`；JSON 请求体限制 8 KiB。浏览器 Cookie 会话不使用 localStorage token。
+所有修改请求需 `X-Meow-Request: 1`；JSON 请求体限制 8 KiB，头像和录音使用各自的流式/二进制上限。录音上传另需 `X-Meow-Owner: <用户 ID>`，并用查询参数传递 `title`、`station_id`、`station_name`、`duration_seconds`；资料修改也接受此归属标头以防跨标签页账号切换误操作。浏览器 Cookie 会话不使用 localStorage token。
 
 | 路径 | 方法 | 说明 |
 | --- | --- | --- |
@@ -169,6 +204,12 @@ git push origin v0.1.2
 | `/api/favorites/{uuid}` | PUT / DELETE | 收藏 / 取消收藏 |
 | `/api/stream/{uuid}` | GET | 登录用户音频中转 |
 | `/api/settings` | GET | 非敏感部署状态 |
+| `/api/profile` | GET / PATCH | 当前资料 / 更新 `{nickname}` |
+| `/api/profile/avatar` | GET / POST / DELETE | 私有头像读取 / 原始图片上传 / 删除 |
+| `/api/profile/password` | POST | `{current_password,new_password}`，撤销其他会话 |
+| `/api/recordings` | GET / POST | 私人录音列表 / 原始音频上传 |
+| `/api/recordings/{uuid}` | PATCH / DELETE | 重命名 `{title}` / 删除 |
+| `/api/recordings/{uuid}/audio` | GET | 播放并支持 Range；`?download=true` 下载 |
 
 ## 来源与授权
 
@@ -181,3 +222,5 @@ git push origin v0.1.2
 云白拟态的视觉参考：[Radio Player App — Neumorphic concept](https://dribbble.com/shots/11629433-Radio-Player-App-Neumorphic-concept)，Oleksandr Plyuto for heartbeat。圆盘、浅绿显示窗和冰蓝白软阴影由 CSS 重新实现，调谐和音量控件连接实际功能；未使用原作图片或品牌标志。
 
 应用 Logo 由用户通过 [Issue #1](https://github.com/ca-x/meowRadio/issues/1) 提供，原图保存于 `assets/brand/logo-original.png`。页面 Logo、favicon 和主屏幕图标均由该原图缩放生成。
+
+弧光调谐参考 [FM Radio](https://dribbble.com/shots/24101705-FM-Radio)，Slava Kornilov for Geex Arts。奶油白、黑白刻度、银色复古和红屏像素依据用户提供图片重新实现；使用真实频道序号与功能，不展示虚构的 FM 频率或原设计的订阅/节目元数据。参考图片和视频不作为应用资源分发。

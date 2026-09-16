@@ -1,0 +1,138 @@
+/* mono receiver: palette, material and responsive layout. */
+
+:root[data-theme="mono"][data-color="light"] {
+  --canvas: #e9e9e9;
+  --surface: #fff;
+  --field: #fafafa;
+  --surface-raised: #eee;
+  --ink: #121212;
+  --muted: #626262;
+  --accent: #bc2333;
+  --accent-ink: #fff;
+  --line: #d4d4d4;
+  --control-line: #939393;
+  --selected: #f6e5e7;
+  --material: #fff;
+  --paper: var(--surface);
+}
+:root[data-theme="mono"][data-color="dark"] {
+  --canvas: #121212;
+  --surface: #1e1e1e;
+  --field: #171717;
+  --surface-raised: #303030;
+  --ink: #f8f8f8;
+  --muted: #b0b0b0;
+  --accent: #ff929b;
+  --accent-ink: #241215;
+  --line: #414141;
+  --control-line: #797979;
+  --selected: #3b2427;
+  --material: #1e1e1e;
+  --paper: var(--surface);
+}
+.tuning-receiver--mono {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 30px 70px;
+  padding: 40px;
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.tuning-receiver--mono .tuning-display {
+  grid-column: 1;
+  grid-row: 1/3;
+}
+.tuning-receiver--mono .tuning-display-top {
+  margin-bottom: 30px;
+}
+.tuning-receiver--mono .tuning-number > span:first-child {
+  font-weight: 500;
+  font-size: 120px;
+}
+.tuning-receiver--mono .tuning-display h2 {
+  font-weight: 600;
+}
+.tuning-receiver--mono .station-scale {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+}
+.tuning-receiver--mono .tuning-transport {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: end;
+  gap: 8px;
+}
+.tuning-receiver--mono .tuning-transport button {
+  border-radius: 18px;
+  height: 88px;
+  background: var(--surface-raised);
+  border: 0;
+}
+.tuning-receiver--mono .tuning-transport .tuning-play {
+  width: auto;
+  flex: 1;
+  background: var(--ink);
+  color: var(--surface);
+  gap: 8px;
+  font-size: 13px;
+}
+.tuning-receiver--mono .tuning-play svg {
+  width: 22px;
+}
+.tuning-receiver--mono .tuning-tools {
+  grid-column: 1/-1;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.mono-preview {
+  background: linear-gradient(90deg, #fff 48%, #d6404b 49% 50%, #fff 51%);
+  border-bottom: 10px solid #151515;
+}
+:root[data-theme="mono"] :is(.sleep-timer-dialog, .sleep-timer-final) {
+  --timer-rim: #464646;
+  --timer-face: var(--surface);
+  --timer-ink: var(--ink);
+  --timer-hand: #d43d50;
+}
+@media (max-width: 760px) {
+  .tuning-receiver--mono {
+    grid-template-columns: 1fr;
+    padding: 28px 22px 20px;
+    gap: 26px;
+    max-width: 480px;
+    margin: auto;
+  }
+  .tuning-receiver--mono .tuning-display {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .tuning-receiver--mono .tuning-number {
+    justify-content: center;
+    margin-top: 45px;
+  }
+  .tuning-receiver--mono .tuning-number > span:first-child {
+    font-size: 100px;
+  }
+  .tuning-receiver--mono .tuning-display h2,
+  .tuning-receiver--mono .tuning-metadata {
+    text-align: center;
+  }
+  .tuning-receiver--mono .station-scale {
+    grid-column: 1;
+    grid-row: 2;
+    margin: 10px -10px 0;
+  }
+  .tuning-receiver--mono .tuning-transport {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .tuning-receiver--mono .tuning-tools {
+    grid-column: 1;
+    grid-row: 4;
+  }
+  .tuning-receiver--mono .tuning-display-top {
+    margin-bottom: 10px;
+  }
+}

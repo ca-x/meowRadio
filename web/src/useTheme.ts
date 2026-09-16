@@ -1,17 +1,14 @@
+import { isReceiverTheme, type ReceiverTheme } from "./receiverThemes";
 import { useState, useEffect } from "react";
 export default function useTheme() {
-  const [theme, setTheme] = useState<"walnut" | "vitreous" | "led" | "soft">(
-    () => {
-      try {
-        const saved = localStorage.getItem("meow-theme");
-        return saved === "vitreous" || saved === "led" || saved === "soft"
-          ? saved
-          : "walnut";
-      } catch {
-        return "walnut";
-      }
-    },
-  );
+  const [theme, setTheme] = useState<ReceiverTheme>(() => {
+    try {
+      const saved = localStorage.getItem("meow-theme");
+      return isReceiverTheme(saved) ? saved : "walnut";
+    } catch {
+      return "walnut";
+    }
+  });
   const [colorMode, setColorMode] = useState<"light" | "dark">(() => {
     try {
       const saved = localStorage.getItem("meow-color");
@@ -19,7 +16,9 @@ export default function useTheme() {
     } catch {
       /* private storage */
     }
-    return theme === "vitreous" || theme === "led" ? "dark" : "light";
+    return ["vitreous", "led", "arc", "signal"].includes(theme)
+      ? "dark"
+      : "light";
   });
   useEffect(() => {
     document.documentElement.dataset.theme = theme;

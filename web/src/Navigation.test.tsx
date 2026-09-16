@@ -114,10 +114,12 @@ it("honors saved relay on regular play, retains preference after logout and relo
   expect(document.querySelector("audio")?.getAttribute("src")).toBe(
     "/api/stream/station-a",
   );
-  fireEvent.click(screen.getByRole("button", { name: "listener" }));
-  fireEvent.click(screen.getByRole("button", { name: "退出登录" }));
+  fireEvent.keyDown(screen.getByRole("button", { name: "listener" }), {
+    key: "ArrowDown",
+  });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "退出登录" }));
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: "登录 / 注册" })).toBeTruthy(),
+    expect(screen.getByRole("button", { name: "用户菜单" })).toBeTruthy(),
   );
   expect(localStorage.getItem("meow-relay")).toBe("true");
   first.unmount();
@@ -132,8 +134,71 @@ it("honors saved relay on regular play, retains preference after logout and relo
 it("shows version in settings, with language and color controls only on home", async () => {
   mount();
   await screen.findByRole("button", { name: "收听 Example FM" });
-  fireEvent.click(screen.getByRole("button", { name: "连接设置" }));
+  fireEvent.keyDown(screen.getByRole("button", { name: "listener" }), {
+    key: "ArrowDown",
+  });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "系统设置" }));
   const dialog = screen.getByRole("dialog");
   expect(dialog.textContent).toContain("0.1.2");
   expect(dialog.querySelector(".home-appearance")).toBeNull();
+});
+
+it("separates two personal tabs, system themes and the recording library in the user menu", async () => {
+  mount();
+  await screen.findByRole("button", { name: "收听 Example FM" });
+  fireEvent.keyDown(screen.getByRole("button", { name: "listener" }), {
+    key: "ArrowDown",
+  });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "个人选项" }));
+  expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+    "个人资料",
+    "修改密码",
+  ]);
+  expect(screen.getByLabelText("昵称")).toBeTruthy();
+  fireEvent.keyDown(screen.getByRole("tab", { name: "个人资料" }), {
+    key: "ArrowRight",
+  });
+  fireEvent.mouseDown(screen.getByRole("tab", { name: "修改密码" }), {
+    button: 0,
+  });
+  expect(await screen.findByLabelText("当前密码")).toBeTruthy();
+  expect(screen.queryByText("录制格式")).toBeNull();
+});
+
+it("keeps a one-time relay selection separate from the persisted default", async () => {
+  mount();
+  fireEvent.click(
+    await screen.findByRole("button", { name: "本次经服务器收听 Example FM" }),
+  );
+  expect(document.querySelector("audio")?.getAttribute("src")).toBe(
+    "/api/stream/station-a",
+  );
+  expect(localStorage.getItem("meow-relay")).toBe("false");
+  const toggle = screen.getByRole("button", { name: "服务器中转" });
+  expect(toggle.getAttribute("aria-pressed")).toBe("true");
+  expect(toggle.textContent).toBe("");
+  fireEvent.click(toggle);
+  expect(document.querySelector("audio")?.getAttribute("src")).toBe(
+    station.url,
+  );
+  expect(localStorage.getItem("meow-relay")).toBe("false");
+});
+
+it("changing the saved default does not interrupt the current live stream", async () => {
+  mount();
+  fireEvent.click(
+    await screen.findByRole("button", { name: "收听 Example FM" }),
+  );
+  const audio = document.querySelector("audio")!;
+  fireEvent.playing(audio);
+  const plays = vi.mocked(HTMLMediaElement.prototype.play).mock.calls.length;
+  fireEvent.keyDown(screen.getByRole("button", { name: "listener" }), {
+    key: "ArrowDown",
+  });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "系统设置" }));
+  fireEvent.mouseDown(screen.getByRole("tab", { name: "设置" }), { button: 0 });
+  fireEvent.click(await screen.findByRole("radio", { name: /^服务端中转/ }));
+  expect(localStorage.getItem("meow-relay")).toBe("true");
+  expect(audio.getAttribute("src")).toBe(station.url);
+  expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(plays);
 });

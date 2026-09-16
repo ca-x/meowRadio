@@ -3,6 +3,13 @@
 @import url("./led.css");
 @import url("./soft.css");
 @import url("./color-modes.css");
+@import url("./tuning-receivers.css");
+@import url("./arc.css");
+@import url("./ivory.css");
+@import url("./mono.css");
+@import url("./signal.css");
+@import url("./retro.css");
+@import url("./settings.css");
 :root {
   font-family:
     Inter,
@@ -1518,10 +1525,10 @@ p {
   font-size: 11px;
   color: var(--muted);
 }
-.receiver:not(.receiver-vitreous):not(.receiver-soft) .player-utilities {
+:root[data-theme="walnut"] .receiver .player-utilities {
   margin: 12px 5px 0;
 }
-.receiver:not(.receiver-vitreous):not(.receiver-soft) .player-utilities > span {
+:root[data-theme="walnut"] .receiver .player-utilities > span {
   color: #fff5dc;
 }
 @media (max-width: 640px) {

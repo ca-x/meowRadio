@@ -1,0 +1,217 @@
+/* signal receiver: palette, material and responsive layout. */
+
+:root[data-theme="signal"][data-color="light"] {
+  --canvas: #f0e8e4;
+  --surface: #faf5f2;
+  --field: #fffaf7;
+  --surface-raised: #e9ded7;
+  --ink: #322924;
+  --muted: #6b5b52;
+  --accent: #b52730;
+  --accent-ink: #fff;
+  --line: #d2c3ba;
+  --control-line: #9a8275;
+  --selected: #f4deda;
+  --material: linear-gradient(130deg, #fcf8f4, #f4ece6);
+  --paper: var(--surface);
+}
+:root[data-theme="signal"][data-color="dark"] {
+  --canvas: #141414;
+  --surface: #292929;
+  --field: #1e1e1e;
+  --surface-raised: #393939;
+  --ink: #fff7f4;
+  --muted: #c7bdb8;
+  --accent: #ff9194;
+  --accent-ink: #301315;
+  --line: #4b4440;
+  --control-line: #8e8078;
+  --selected: #462e2e;
+  --material: #292929;
+  --paper: var(--surface);
+}
+.tuning-receiver--signal {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 22px 22px 26px;
+  border-radius: 52px;
+  background: #2c2c2c;
+  --device-ink: #faf7f3;
+  --device-muted: #c2c0bc;
+  color: var(--device-ink);
+  box-shadow: inset 0 1px #ffffff0c;
+}
+.tuning-receiver--signal .tuning-display {
+  border-radius: 36px;
+  background: #ce303c;
+  color: #fff;
+  padding: 22px 28px;
+  --device-muted: #fff7ef;
+}
+.tuning-receiver--signal .tuning-number {
+  justify-content: center;
+  margin: 26px 0;
+  gap: 20px;
+}
+.pixel-number {
+  display: flex;
+  gap: 8px;
+}
+.pixel-digit {
+  display: grid;
+  grid-template-columns: repeat(5, 6px);
+  grid-template-rows: repeat(7, 6px);
+}
+.pixel-digit i[data-lit="true"] {
+  background: currentColor;
+}
+.tuning-receiver--signal .tuning-number-unit {
+  color: #fff;
+}
+.tuning-receiver--signal .tuning-display-top {
+  color: #fff;
+  font-size: 10px;
+}
+.tuning-receiver--signal .tuning-state .playback-visual {
+  color: #fff;
+}
+.tuning-receiver--signal .tuning-display h2 {
+  padding-top: 20px;
+  border-top: 1px dashed #ffffff60;
+  text-align: center;
+  font-size: 24px;
+}
+.tuning-receiver--signal .tuning-metadata {
+  text-align: center;
+  color: #fff;
+}
+.tuning-receiver--signal .station-scale {
+  margin: 0 6px;
+  --line: #797976;
+  --control-line: #aaa9a5;
+  --surface: #2c2c2c;
+}
+.tuning-receiver--signal .linear-needle {
+  width: 7px;
+  height: 58px;
+  top: 28px;
+  border-radius: 5px;
+  background: #fff;
+  transform: translateX(-50%);
+  box-shadow: 0 0 0 2px #2c2c2c;
+}
+.tuning-receiver--signal .linear-unit {
+  height: 36px;
+  background: repeating-linear-gradient(
+    90deg,
+    #777772 0 1px,
+    transparent 1px 13px
+  );
+}
+.tuning-receiver--signal .linear-unit i {
+  height: 56px;
+  top: -10px;
+}
+.tuning-receiver--signal .linear-unit b {
+  top: 58px;
+}
+.tuning-receiver--signal .tuning-transport {
+  width: 260px;
+  max-width: 100%;
+  align-self: center;
+}
+.tuning-receiver--signal .tuning-transport button {
+  background: #363636;
+  border-color: #555;
+  color: #f9f7f3;
+  width: 48px;
+  height: 48px;
+}
+.tuning-receiver--signal .tuning-transport .tuning-play {
+  width: 64px;
+  height: 64px;
+  background: #f7f2ec;
+  color: #30302e;
+  border-color: #f7f2ec;
+}
+.tuning-receiver--signal .tuning-tools {
+  border-top: 1px solid #494946;
+  padding-top: 10px;
+}
+.tuning-receiver--signal .tuning-save {
+  background: transparent;
+  border: 0;
+  color: #fff4e9;
+}
+.tuning-receiver--signal .tuning-save[aria-pressed="true"] {
+  color: #ff9ba0;
+}
+.tuning-receiver--signal .tuning-volume input {
+  accent-color: #ff868d;
+}
+:root[data-theme="signal"][data-color="light"] .tuning-receiver--signal {
+  background: #e2d7ce;
+  --device-ink: #45342d;
+  --device-muted: #66564c;
+  box-shadow:
+    inset 0 1px #fff9,
+    0 12px 28px #503a2320;
+}
+:root[data-theme="signal"][data-color="light"]
+  .tuning-receiver--signal
+  .tuning-display {
+  background: #bb2935;
+}
+:root[data-theme="signal"][data-color="light"]
+  .tuning-receiver--signal
+  .linear-unit {
+  background: repeating-linear-gradient(
+    90deg,
+    #94847a 0 1px,
+    transparent 1px 13px
+  );
+}
+:root[data-theme="signal"][data-color="light"]
+  .tuning-receiver--signal
+  .linear-needle {
+  background: #6c352a;
+  box-shadow: 0 0 0 2px #e2d7ce;
+}
+:root[data-theme="signal"][data-color="light"]
+  .tuning-receiver--signal
+  .tuning-save {
+  color: #713931;
+}
+:root[data-theme="signal"][data-color="light"]
+  .tuning-receiver--signal
+  .tuning-tools {
+  border-color: #c5b6aa;
+}
+.signal-preview {
+  background: linear-gradient(#ed454d 0 66%, #292929 66%);
+  border: 7px solid #292929;
+  border-radius: 13px;
+}
+:root[data-theme="signal"] :is(.sleep-timer-dialog, .sleep-timer-final) {
+  --timer-rim: #934951;
+  --timer-face: var(--surface);
+  --timer-ink: var(--ink);
+  --timer-hand: var(--accent);
+}
+@media (max-width: 600px) {
+  .tuning-receiver--signal {
+    border-radius: 38px;
+    padding: 16px 16px 20px;
+    gap: 14px;
+  }
+  .tuning-receiver--signal .tuning-display {
+    border-radius: 27px;
+    padding: 18px;
+  }
+  .tuning-receiver--signal .tuning-display h2 {
+    font-size: 20px;
+  }
+}

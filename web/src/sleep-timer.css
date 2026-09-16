@@ -487,7 +487,8 @@
   }
 }
 
-.receiver:not(.receiver-vitreous):not(.receiver-soft)
+:root[data-theme="walnut"]
+  .receiver
   .sleep-timer-entry:not([data-running="true"]) {
   color: #fff5dc;
   background: #24180e55;

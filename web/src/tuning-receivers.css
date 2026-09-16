@@ -1,0 +1,273 @@
+/* Shared tuning controls and receiver primitives. */
+
+.receiver.receiver-tuning {
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+}
+.receiver-tuning::before,
+.receiver-tuning::after,
+.receiver-tuning > .screw,
+.receiver-tuning > .receiver-face,
+.receiver-tuning > .night-receiver {
+  display: none;
+}
+.tuning-receiver {
+  --device-ink: var(--ink);
+  --device-muted: var(--muted);
+  position: relative;
+  color: var(--device-ink);
+  min-width: 0;
+}
+.tuning-display {
+  min-width: 0;
+}
+.tuning-display-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  color: var(--device-muted);
+  font-size: 12px;
+}
+.tuning-display-top > span:first-child {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tuning-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.tuning-state .playback-visual {
+  width: 22px;
+  height: 18px;
+  gap: 1px;
+  color: var(--accent);
+}
+.tuning-number {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  margin: 28px 0 16px;
+}
+.tuning-number > span:first-child:not(.digital-number) {
+  font-size: clamp(80px, 9vw, 132px);
+  letter-spacing: -0.065em;
+  font-weight: 600;
+}
+.tuning-number .number-prefix {
+  color: var(--device-muted);
+  opacity: 0.58;
+}
+.tuning-number-unit {
+  font-family: "Space Mono", monospace;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--device-muted);
+}
+.tuning-number-unit > span {
+  display: block;
+  font-size: 10px;
+}
+.tuning-display h2 {
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  margin: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+.tuning-metadata {
+  color: var(--device-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 8px 0 0;
+}
+.tuning-transport {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+}
+.tuning-transport button,
+.tuning-save {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 54px;
+  height: 54px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--device-ink);
+  transition:
+    transform 120ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    background-color 160ms ease;
+}
+.tuning-transport button:active,
+.tuning-save:active {
+  transform: scale(0.97);
+}
+.tuning-transport .tuning-play {
+  width: 76px;
+  height: 76px;
+}
+.tuning-transport button:disabled,
+.tuning-save:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.tuning-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-width: 0;
+}
+.tuning-save {
+  width: 44px;
+  height: 44px;
+}
+.tuning-save[aria-pressed="true"] {
+  color: var(--accent);
+}
+.tuning-volume {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--device-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+.tuning-volume input {
+  width: 110px;
+  min-width: 30px;
+  accent-color: var(--accent);
+  height: 44px;
+}
+.tuning-volume > span:last-child {
+  min-width: 32px;
+  text-align: right;
+}
+.tuning-loading {
+  animation: spin 1s linear infinite;
+}
+.station-scale {
+  position: relative;
+  min-width: 0;
+}
+.station-scale-art {
+  position: relative;
+  overflow: hidden;
+}
+.station-scale input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: ew-resize;
+  touch-action: pan-y;
+}
+.station-scale:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 6px;
+  border-radius: 10px;
+}
+.station-scale:has(input:disabled) {
+  opacity: 0.5;
+}
+.scale-instruction {
+  display: block;
+  text-align: center;
+  color: var(--device-muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  margin: 8px 0 0;
+}
+.station-scale--linear .station-scale-art {
+  height: 135px;
+  padding-top: 30px;
+}
+.linear-track {
+  display: flex;
+  width: 100%;
+  height: 68px;
+  transition: transform 240ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+}
+.linear-unit {
+  position: relative;
+  flex: 1 0 0;
+  min-width: 0;
+  height: 50px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--line) 0 1px,
+    transparent 1px 4px
+  );
+}
+.linear-unit i {
+  position: absolute;
+  left: 50%;
+  top: -10px;
+  height: 60px;
+  border-left: 1px solid var(--control-line);
+}
+.linear-unit b {
+  position: absolute;
+  top: 65px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--device-muted);
+}
+.linear-needle {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 2px;
+  height: 126px;
+  background: #da394d;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+@media (hover: hover) and (pointer: fine) {
+  .tuning-transport button:not(:disabled):hover,
+  .tuning-save:not(:disabled):hover {
+    filter: brightness(1.08);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tuning-transport button,
+  .tuning-save,
+  .linear-track {
+    transition: none;
+  }
+  .tuning-loading {
+    animation: none;
+  }
+}
+.station-scale:has(input:focus-visible) :is(.arc-wheel, .linear-track) {
+  transition: none;
+}
+.linear-track {
+  position: relative;
+  left: 50%;
+}
+.linear-unit {
+  flex: 0 0 52px;
+}
+.station-scale--linear .station-scale-art {
+  mask-image: linear-gradient(90deg, transparent, #000 12% 88%, transparent);
+}

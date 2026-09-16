@@ -1,6 +1,6 @@
 {
   "name": "meowradio-web",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,6 +14,9 @@
     "@fontsource/space-mono": "^5.3.0",
     "@lazycatcloud/sdk": "^0.1.553",
     "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-dropdown-menu": "^2.1.24",
+    "@radix-ui/react-tabs": "^1.1.21",
+    "@radix-ui/react-tooltip": "^1.2.16",
     "@tanstack/react-query": "^5.90.0",
     "hls.js": "^1.6.15",
     "i18next": "^26.4.2",

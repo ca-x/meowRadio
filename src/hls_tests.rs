@@ -124,6 +124,8 @@ async fn state(
         config,
         dummy_hash: "unused".into(),
         relay_slots: Arc::new(tokio::sync::Semaphore::new(32)),
+        recording_upload_slots: Arc::new(tokio::sync::Semaphore::new(4)),
+        recordings_dir: Arc::new(std::path::PathBuf::from("unused-recordings")),
         outbound: transport.clone(),
         hls_key: Arc::new([7; 32]),
         auth_attempts: Default::default(),

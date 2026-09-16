@@ -5,7 +5,9 @@ pub mod directory;
 pub mod error;
 pub mod hls;
 pub mod outbound;
+pub mod profile;
 pub mod proxy;
+pub mod recordings;
 pub mod relay;
 pub mod setup;
 use argon2::{Argon2, PasswordHasher, password_hash::SaltString};
@@ -38,6 +40,8 @@ pub struct AppState {
     pub catalog: catalog::Catalog,
     pub dummy_hash: Arc<str>,
     pub relay_slots: Arc<Semaphore>,
+    pub recording_upload_slots: Arc<Semaphore>,
+    pub recordings_dir: Arc<std::path::PathBuf>,
     pub outbound: Arc<dyn outbound::Transport>,
     pub(crate) hls_key: Arc<[u8; 32]>,
     auth_attempts: Arc<Mutex<HashMap<IpAddr, (Instant, u32)>>>,
@@ -74,6 +78,7 @@ pub async fn state(config: Config) -> anyhow::Result<AppState> {
     let outbound = Arc::new(outbound::NetworkTransport::new(&config));
     let mut hls_key = [0u8; 32];
     rand_core::RngCore::fill_bytes(&mut rand_core::OsRng, &mut hls_key);
+    let recordings_dir = recordings::storage_root(&config).await?;
     Ok(AppState {
         db,
         catalog,
@@ -82,11 +87,17 @@ pub async fn state(config: Config) -> anyhow::Result<AppState> {
         config,
         dummy_hash: dummy.into(),
         relay_slots: Arc::new(Semaphore::new(32)),
+        recording_upload_slots: Arc::new(Semaphore::new(4)),
+        recordings_dir: Arc::new(recordings_dir),
         auth_attempts: Default::default(),
     })
 }
 async fn security(State(s): State<AppState>, request: Request, next: Next) -> Response {
     let path = request.uri().path();
+    let private_recording = path == "/api/recordings"
+        || path.starts_with("/api/recordings/")
+        || path == "/api/profile"
+        || path.starts_with("/api/profile/");
     if !matches!(
         *request.method(),
         axum::http::Method::GET | axum::http::Method::HEAD | axum::http::Method::OPTIONS
@@ -100,7 +111,11 @@ async fn security(State(s): State<AppState>, request: Request, next: Next) -> Re
     }
     if matches!(
         path,
-        "/api/auth/login" | "/api/auth/register" | "/api/setup" | "/api/proxy/test"
+        "/api/auth/login"
+            | "/api/auth/register"
+            | "/api/setup"
+            | "/api/proxy/test"
+            | "/api/profile/password"
     ) && request.method() == axum::http::Method::POST
     {
         let ip = request
@@ -128,6 +143,12 @@ async fn security(State(s): State<AppState>, request: Request, next: Next) -> Re
         }
     }
     let mut response = next.run(request).await;
+    if private_recording {
+        response.headers_mut().insert(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("private, no-store"),
+        );
+    }
     for (key, value) in [
         ("x-content-type-options", "nosniff"),
         ("referrer-policy", "no-referrer"),
@@ -211,6 +232,8 @@ pub fn app(s: AppState) -> Router {
             put(catalog::save).delete(catalog::remove),
         )
         .route("/stream/{id}", get(relay::stream))
+        .merge(recordings::routes())
+        .merge(profile::routes())
         .layer(tower_http::set_header::SetResponseHeaderLayer::overriding(
             header::CACHE_CONTROL,
             HeaderValue::from_static("no-store"),
