@@ -103,6 +103,7 @@ function StationScale({
   const count = stations.length;
   // The scale is an index into the current results, never an invented FM band.
   const selected = Math.max(index, 0);
+  const firstVisible = Math.max(0, selected - 10);
   const rotation = count > 1 ? 56 - (selected / (count - 1)) * 112 : 0;
   return (
     <div
@@ -127,21 +128,29 @@ function StationScale({
                   className={i % 5 === 0 ? "major" : "minor"}
                 />
               ))}
-              {stations.map((station, i) => {
-                const angle = count > 1 ? 56 - (i / (count - 1)) * 112 : 0;
-                return (
-                  <g key={station.id} transform={`rotate(${-angle} 320 340)`}>
-                    <text
-                      x="320"
-                      y="32"
-                      textAnchor="middle"
-                      className={i === index ? "selected" : ""}
-                    >
-                      {String(i + 1).padStart(2, "0")}
-                    </text>
-                  </g>
-                );
-              })}
+              {stations
+                .map((station, i) => ({ station, i }))
+                .filter(
+                  ({ i }) =>
+                    count <= 121 ||
+                    i === index ||
+                    i % Math.ceil(count / 120) === 0,
+                )
+                .map(({ station, i }) => {
+                  const angle = count > 1 ? 56 - (i / (count - 1)) * 112 : 0;
+                  return (
+                    <g key={station.id} transform={`rotate(${-angle} 320 340)`}>
+                      <text
+                        x="320"
+                        y="32"
+                        textAnchor="middle"
+                        className={i === index ? "selected" : ""}
+                      >
+                        {String(i + 1).padStart(2, "0")}
+                      </text>
+                    </g>
+                  );
+                })}
               {Array.from({ length: 91 }, (_, i) => (
                 <line
                   key={i}
@@ -167,12 +176,26 @@ function StationScale({
               transform: `translateX(-${(selected + 0.5) * 52}px)`,
             }}
           >
-            {Array.from({ length: Math.max(count, 1) }, (_, i) => (
-              <span className="linear-unit" key={i}>
-                <i />
-                <b>{count ? String(i + 1).padStart(2, "0") : "—"}</b>
-              </span>
-            ))}
+            {Array.from(
+              { length: Math.min(Math.max(count, 1) - firstVisible, 21) },
+              (_, offset) => firstVisible + offset,
+            )
+              .filter((i) => i >= 0 && i < Math.max(count, 1))
+              .map((i) => (
+                <span
+                  className="linear-unit"
+                  key={i}
+                  style={{
+                    position: "absolute",
+                    left: `${i * 52}px`,
+                    top: 0,
+                    width: 52,
+                  }}
+                >
+                  <i />
+                  <b>{count ? String(i + 1).padStart(2, "0") : "—"}</b>
+                </span>
+              ))}
           </div>
         )}
         {!curved && <span className="linear-needle" />}

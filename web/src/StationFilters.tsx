@@ -107,9 +107,11 @@ function title(item: Facet, kind: keyof Directory) {
 export default function StationFilters({
   value,
   onApply,
+  visibleCountries,
 }: {
   value: Filters;
   onApply: (next: Filters) => void;
+  visibleCountries?: string[];
 }) {
   useTranslation();
   const [open, setOpen] = useState(false);
@@ -128,7 +130,10 @@ export default function StationFilters({
       [key]: next,
     }));
   function options(kind: keyof Directory, current: string) {
-    const items = data[kind];
+    const items =
+      kind === "countries" && visibleCountries !== undefined
+        ? data[kind].filter((item) => visibleCountries.includes(item.value))
+        : data[kind];
     const sorted = [...items].sort((a, b) =>
       collators[i18n.language === "en" ? "en" : "zh"].compare(
         title(a, kind),
@@ -204,7 +209,17 @@ export default function StationFilters({
             <div className="filter-fields">
               <label>
                 {tr("国家 / 地区")}
+                {visibleCountries !== undefined && (
+                  <small id="country-viewport-help" aria-hidden="true">
+                    {tr("仅列出当前视野内的国家 / 地区")}
+                  </small>
+                )}
                 <select
+                  aria-describedby={
+                    visibleCountries !== undefined
+                      ? "country-viewport-help"
+                      : undefined
+                  }
                   value={draft.country}
                   onChange={(e) => change("country", e.target.value)}
                 >

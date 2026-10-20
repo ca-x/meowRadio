@@ -2,12 +2,15 @@ import { geoCentroid } from "d3-geo";
 import { feature } from "topojson-client";
 import { getNumericCodes } from "i18n-iso-countries";
 import atlas from "world-atlas/countries-110m.json";
+import detailedAtlas from "world-atlas/countries-50m.json";
 import type { Station } from "./api";
+import { countGenres, genreGroups, genreIndex } from "./stationGenres";
 
 export const countries = feature(atlas, atlas.objects.countries);
 const codes = getNumericCodes();
 const centers = new Map<string, [number, number]>();
-for (const country of countries.features) {
+for (const country of feature(detailedAtlas, detailedAtlas.objects.countries)
+  .features) {
   const code = codes[String(country.id).padStart(3, "0")];
   if (code) centers.set(code, geoCentroid(country));
 }
@@ -16,6 +19,23 @@ centers.set("SG", [103.82, 1.35]);
 centers.set("HK", [114.17, 22.32]);
 centers.set("MO", [113.54, 22.2]);
 centers.set("MT", [14.38, 35.94]);
+// Territories grouped into larger polygons by Natural Earth still have separate directory codes.
+for (const [code, lon, lat] of [
+  ["RE", 55.5, -21.1],
+  ["UM", -177.37, 28.2],
+  ["XK", 21.17, 42.67],
+  ["GP", -61.58, 16.25],
+  ["BQ", -68.26, 12.18],
+  ["MQ", -61, 14.65],
+  ["GI", -5.35, 36.14],
+  ["CX", 105.62, -10.45],
+  ["GF", -53.13, 3.93],
+  ["YT", 45.17, -12.83],
+  ["TV", 179.2, -8.52],
+  ["SJ", 15.63, 78.2],
+  ["CC", 96.87, -12.17],
+] as const)
+  centers.set(code, [lon, lat]);
 
 export function stationLocation(station: Station) {
   const { geo_lat: lat, geo_long: lon } = station;
@@ -49,51 +69,48 @@ export function stationGenre(station: Station) {
   );
 }
 
-const genres = [
-  { name: "爵士", match: /jazz|爵士|blues|蓝调/i, color: "#e9b87b" },
-  {
-    name: "古典",
-    match: /classical|classic music|古典|opera|symphon/i,
-    color: "#b5cbb2",
-  },
-  {
-    name: "电子",
-    match: /electro|dance|house|techno|trance|edm|电子|舞曲/i,
-    color: "#92c9dc",
-  },
-  { name: "摇滚", match: /rock|metal|punk|摇滚/i, color: "#e49c91" },
-  { name: "流行", match: /pop|hits|流行|top.?40/i, color: "#c4aee5" },
-  {
-    name: "氛围",
-    match: /ambient|chill|lounge|relax|氛围|轻音乐/i,
-    color: "#a0d4ca",
-  },
-  {
-    name: "新闻与谈话",
-    match: /news|talk|新闻|谈话|spoken/i,
-    color: "#d3c68c",
-  },
-  { name: "其他", match: /./, color: "#aab4c5" },
-];
-export const genreGroups = genres.map(({ name, color }) => ({ name, color }));
-export function genreIndex(station: Station) {
-  const index = genres.findIndex(({ match }) => match.test(station.tags));
-  return index < 0 ? genres.length - 1 : index;
+export { genreGroups, genreIndex } from "./stationGenres";
+
+export function nebulaPositions(
+  stations: Station[],
+): Map<string, [number, number, number]> {
+  const counts = countGenres(stations);
+  const seen = counts.map(() => 0);
+  const result = new Map<string, [number, number, number]>();
+  for (const station of stations) {
+    const group = genreIndex(station);
+    const angle = (group * Math.PI * 2) / genreGroups.length;
+    const index = seen[group]++;
+    const spiral = index * 2.399963 + (hash(station.id) % 100) / 100;
+    const radius = 0.08 + Math.sqrt(index / Math.max(1, counts[group])) * 0.55;
+    result.set(station.id, [
+      Math.cos(angle) * 1.7 + Math.cos(spiral) * radius,
+      Math.sin(angle) * 1.1 + Math.sin(spiral) * radius,
+      ((hash(station.id) % 100) / 100 - 0.5) * 0.5,
+    ]);
+  }
+  return result;
 }
 
-export function nebulaPosition(
-  station: Station,
-  siblings: Station[],
-): [number, number, number] {
-  const group = genreIndex(station);
-  const angle = (group * Math.PI * 2) / genres.length;
-  const peers = siblings.filter((item) => genreIndex(item) === group);
-  const index = peers.findIndex((item) => item.id === station.id);
-  const spiral = index * 2.399963 + (hash(station.id) % 100) / 100;
-  const radius = 0.12 + Math.sqrt(Math.max(0, index)) * 0.13;
-  return [
-    Math.cos(angle) * 1.7 + Math.cos(spiral) * radius,
-    Math.sin(angle) * 1.1 + Math.sin(spiral) * radius,
-    ((hash(station.id) % 100) / 100 - 0.5) * 0.5,
-  ];
+// Test the homogeneous clip bounds before submitting a marker index to the GPU.
+// Globe points behind the surface horizon are also hidden even inside the frustum.
+export function markerInViewport(
+  point: { x: number; y: number; z: number },
+  camera: { x: number; y: number; z: number },
+  matrix: ArrayLike<number>,
+  globe: boolean,
+) {
+  const { x, y, z } = point;
+  if (globe && x * camera.x + y * camera.y + z * camera.z <= 1.45 ** 2)
+    return false;
+  const clipX = matrix[0] * x + matrix[4] * y + matrix[8] * z + matrix[12];
+  const clipY = matrix[1] * x + matrix[5] * y + matrix[9] * z + matrix[13];
+  const clipZ = matrix[2] * x + matrix[6] * y + matrix[10] * z + matrix[14];
+  const w = matrix[3] * x + matrix[7] * y + matrix[11] * z + matrix[15];
+  return (
+    w > 0 &&
+    Math.abs(clipX) <= w &&
+    Math.abs(clipY) <= w &&
+    Math.abs(clipZ) <= w
+  );
 }

@@ -339,6 +339,38 @@ async fn pagination_categories_and_private_list_separation() {
     let page = stations(&app).await;
     assert_eq!(page["total"], 30);
     assert_eq!(page["items"].as_array().unwrap().len(), 24);
+    let (status, all) = alice(&app, "GET", "/api/personal-stations/explore", Value::Null).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(all["items"].as_array().unwrap().len(), 30);
+    let (_, larger) = alice(
+        &app,
+        "GET",
+        "/api/personal-stations?page_size=100",
+        Value::Null,
+    )
+    .await;
+    assert_eq!(larger["items"].as_array().unwrap().len(), 30);
+    assert_eq!(larger["page_size"], 100);
+    let (status, _) = request(
+        &app,
+        "GET",
+        "/api/personal-stations/explore",
+        None,
+        None,
+        Value::Null,
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let (_, other) = request(
+        &app,
+        "GET",
+        "/api/personal-stations/explore",
+        Some("bob"),
+        None,
+        Value::Null,
+    )
+    .await;
+    assert_eq!(other["items"].as_array().unwrap().len(), 0);
     assert_eq!(
         page["categories"],
         json!([["音乐", "爵士"], ["音乐", "摇滚"]])

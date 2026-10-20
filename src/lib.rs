@@ -3,6 +3,7 @@ pub mod catalog;
 pub mod config;
 pub mod directory;
 pub mod error;
+pub mod exploration;
 pub mod favorites;
 pub mod hls;
 pub mod legacy_media;
@@ -240,9 +241,16 @@ pub fn app(s: AppState) -> Router {
         .route("/auth/login", post(auth::login))
         .route("/auth/logout", post(auth::logout))
         .route("/stations", get(catalog::search))
+        .route(
+            "/stations/explore",
+            get(exploration::get).layer(tower_http::compression::CompressionLayer::new()),
+        )
         .route("/directory", get(directory::get))
         .route("/stations/{id}/click", post(catalog::click))
-        .route("/favorites", get(catalog::favorites))
+        .route(
+            "/favorites",
+            get(catalog::favorites).layer(tower_http::compression::CompressionLayer::new()),
+        )
         .route(
             "/favorites/{id}",
             put(catalog::save).delete(catalog::remove),

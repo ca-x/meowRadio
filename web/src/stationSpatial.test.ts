@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { Station } from "./api";
-import { genreIndex, nebulaPosition, stationLocation } from "./stationSpatial";
+import { PerspectiveCamera, Matrix4 } from "three";
+import {
+  markerInViewport,
+  genreIndex,
+  nebulaPositions,
+  stationLocation,
+} from "./stationSpatial";
 
 const station: Station = {
   id: "radio-a",
@@ -15,6 +21,28 @@ const station: Station = {
 };
 
 describe("station locations and genre clouds", () => {
+  it("locates separately listed territories without inventing unknown country locations", () => {
+    for (const code of [
+      "RE",
+      "UM",
+      "XK",
+      "GP",
+      "BQ",
+      "MQ",
+      "GI",
+      "CX",
+      "GF",
+      "YT",
+      "TV",
+      "SJ",
+      "CC",
+    ])
+      expect(
+        stationLocation({ ...station, countrycode: code })?.approximate,
+      ).toBe(true);
+    expect(stationLocation({ ...station, countrycode: "XX" })).toBeNull();
+  });
+
   it("uses valid station coordinates, including the equator and zero longitude", () => {
     expect(stationLocation({ ...station, geo_lat: 0, geo_long: 0 })).toEqual({
       coordinates: [0, 0],
@@ -49,18 +77,69 @@ describe("station locations and genre clouds", () => {
     expect(genreIndex({ ...station, tags: "english, classical" })).toBe(1);
     expect(genreIndex({ ...station, tags: "" })).toBe(7);
   });
+  it("does not invent genres from partial words and follows actual tag order", () => {
+    expect(genreIndex({ ...station, tags: "barock,popcorn,warehouse" })).toBe(
+      7,
+    );
+    expect(genreIndex({ ...station, tags: "rock,jazz" })).toBe(3);
+  });
+  it("keeps a large catalog bounded and retains every station", () => {
+    const stations = Array.from({ length: 35000 }, (_, i) => ({
+      ...station,
+      id: `station-${i}`,
+    }));
+    const layout = nebulaPositions(stations);
+    expect(layout.size).toBe(35000);
+    expect(
+      [...layout.values()].every(
+        ([x, y, z]) =>
+          Math.abs(x) < 2.4 && Math.abs(y) < 1.8 && Math.abs(z) <= 0.5,
+      ),
+    ).toBe(true);
+  });
   it("spreads stations sharing one genre into stable, distinct spiral positions", () => {
     const stations = Array.from({ length: 24 }, (_, index) => ({
       ...station,
       id: `radio-${index}`,
     }));
-    const positions = stations.map((item) => nebulaPosition(item, stations));
+    const layout = nebulaPositions(stations);
+    const positions = stations.map((item) => layout.get(item.id)!);
     expect(new Set(positions.map((position) => position.join(","))).size).toBe(
       24,
     );
     expect(positions.every((position) => position.every(Number.isFinite))).toBe(
       true,
     );
-    expect(nebulaPosition(stations[10], [...stations])).toEqual(positions[10]);
+    expect(nebulaPositions([...stations]).get(stations[10].id)).toEqual(
+      positions[10],
+    );
   });
+});
+
+it("culls the back hemisphere and offscreen/behind-camera points before GPU submission", () => {
+  const camera = new PerspectiveCamera(42, 1, 0.1, 100);
+  camera.position.set(0, 0, 4.8);
+  camera.lookAt(0, 0, 0);
+  camera.updateMatrixWorld();
+  const projection = new Matrix4().multiplyMatrices(
+    camera.projectionMatrix,
+    camera.matrixWorldInverse,
+  ).elements;
+  const visible = (x: number, y: number, z: number, globe = false) =>
+    markerInViewport({ x, y, z }, camera.position, projection, globe);
+  expect(visible(0, 0, 1.46, true)).toBe(true);
+  expect(visible(0, 0, -1.46, true)).toBe(false);
+  expect(visible(0, 0, -1.46)).toBe(true);
+  expect(visible(50, 0, 0)).toBe(false);
+  expect(visible(0, 50, 0)).toBe(false);
+  expect(visible(0, 0, 6)).toBe(false);
+  expect(visible(0, 0, -200)).toBe(false);
+});
+
+it("locates country overview clusters for small countries from the detailed atlas", () => {
+  for (const countrycode of ["LU", "BH", "BB", "SC"]) {
+    expect(stationLocation({ ...station, countrycode })?.approximate).toBe(
+      true,
+    );
+  }
 });

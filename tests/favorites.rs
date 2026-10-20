@@ -74,6 +74,7 @@ async fn get(app: &Router, path: &str) -> Value {
 
 fn station(index: usize) -> Station {
     Station {
+        cluster: None,
         id: format!("station-{index:03}"),
         name: format!("Radio {index:03}"),
         url: "https://radio.example/stream".into(),
@@ -137,6 +138,27 @@ async fn pages_are_stable_bounded_and_clamp_after_removals() {
     }
     let legacy = get(&app, "/api/favorites").await;
     assert_eq!(legacy.as_array().unwrap().len(), 49);
+    let larger = get(&app, "/api/favorites/page?page_size=100").await;
+    assert_eq!(larger["page_size"], 100);
+    assert_eq!(ids(&larger).len(), 49);
+    assert_eq!(
+        get(&app, "/api/favorites/page?page_size=100&q=Radio").await["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        49
+    );
+    assert_eq!(
+        request(
+            &app,
+            "GET",
+            "/api/favorites/page?page_size=0",
+            Some("alice")
+        )
+        .await
+        .0,
+        StatusCode::BAD_REQUEST
+    );
     let beyond = get(&app, "/api/favorites/page?page=999").await;
     assert_eq!(beyond["page"], 2);
     assert_eq!(ids(&beyond), ["station-048"]);

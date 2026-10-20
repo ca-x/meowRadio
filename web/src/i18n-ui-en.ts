@@ -1,4 +1,28 @@
 const uiEnglish: Record<string, string> = {
+  每页数量: "Stations per page",
+  探索: "Explore",
+  "{{v0}} 点": "{{v0}} points",
+  "当前视野的光点数量，包含聚合点": "Visible point count, including clusters",
+  "请按国家或关键词缩小范围，继续探索电台":
+    "Narrow by country or keyword to explore more stations",
+  聚合: "Cluster",
+  "当前视野没有节点，试试旋转或重置视角":
+    "No nodes in view. Try rotating or resetting the view.",
+  数量未知: "Count unknown",
+  "当前视野 {{v0}} 个节点": "{{v0}} nodes in view",
+  "点选光点收听，聚合节点可展开探索":
+    "Select a light to listen; expand clusters to explore",
+  "仅列出当前视野内的国家 / 地区":
+    "Only countries and regions in the current view",
+  "目录收录 {{v0}} 个电台 · 按视野展开":
+    "{{v0}} stations in the directory · Explore by viewport",
+  "已加载 {{v0}} 个节点": "{{v0}} nodes loaded",
+  "正在加载视野内的电台…": "Loading stations in the current view…",
+  不支持的分页大小: "Unsupported page size.",
+  找到: "Found",
+  "这些电台未提供位置信息，可在星云或列表中收听。":
+    "These stations have no location. Listen in the nebula or list view.",
+  "{{v0}} 个电台": "{{v0}} stations",
   电台视图: "Station view",
   列表: "List",
   地球: "Globe",

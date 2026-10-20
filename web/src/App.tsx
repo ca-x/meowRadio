@@ -23,6 +23,7 @@ import {
   useEffect,
   useRef,
   useState,
+  useMemo,
 } from "react";
 import type { ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -61,7 +62,9 @@ import type {
   Settings,
   FavoritesSummary,
   FavoritesPage,
+  Exploration,
 } from "./api";
+import type { SceneVisibility } from "./StationScene";
 import Player from "./Player";
 import AccountForm from "./AccountForm";
 import useTheme from "./useTheme";
@@ -73,6 +76,8 @@ import StationFilters, { DEFAULT_FILTERS, filterCount } from "./StationFilters";
 import type { Filters } from "./StationFilters";
 import type { WorldView } from "./StationWorld";
 import "./station-world.css";
+import { countGenres, genreIndex } from "./stationGenres";
+const EMPTY_STATIONS: Station[] = [];
 const StationWorld = lazy(() => import("./StationWorld"));
 function Modal({
   open,
@@ -164,6 +169,91 @@ export default function App({ active = true }: { active?: boolean }) {
       return "list";
     }
   });
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const size = Number(localStorage.getItem("meow-page-size"));
+      return [24, 100, 500, 1000].includes(size) ? size : 24;
+    } catch {
+      return 24;
+    }
+  });
+  const [worldGenre, setWorldGenre] = useState<number | null>(null);
+  const [visibleCountries, setVisibleCountries] = useState<
+    string[] | undefined
+  >();
+  const [detailCountries, setDetailCountries] = useState<string[]>([]);
+  const [detailGenres, setDetailGenres] = useState<string[]>([]);
+  const [drillGenre, setDrillGenre] = useState<string | null>(null);
+  const worldNodes = useRef<Station[]>([]);
+  const [autoDetail, setAutoDetail] = useState(0);
+  const [drillDetail, setDrillDetail] = useState(0);
+  const [worldScope, setWorldScope] = useState(0);
+  const lastCameraKey = useRef("");
+  const lastDrillKey = useRef("");
+  const worldDetail = Math.max(autoDetail, drillDetail);
+  const requestedGenres = drillGenre ? [drillGenre] : detailGenres;
+  const onWorldVisibility = useCallback(
+    (visibility: SceneVisibility) => {
+      setVisibleCountries((previous) =>
+        previous?.join(",") === visibility.countries.join(",")
+          ? previous
+          : visibility.countries,
+      );
+      if (lastCameraKey.current === visibility.cameraKey) return;
+      lastCameraKey.current = visibility.cameraKey;
+      const distance = visibility.distance;
+      if (view === "nebula" && drillGenre === "*" && distance > 5.5) {
+        setDrillGenre(null);
+        setDrillDetail(0);
+      }
+      const detail =
+        view === "globe"
+          ? distance < 2.4
+            ? 3
+            : distance < 3
+              ? 2
+              : distance < 3.8
+                ? 1
+                : 0
+          : distance < 2.7
+            ? 3
+            : distance < 3
+              ? 2
+              : distance < 4
+                ? 1
+                : 0;
+      setAutoDetail(detail);
+      setDetailCountries(visibility.countries.slice(0, 6).sort());
+      const visible = new Set(visibility.ids);
+      setDetailGenres(
+        worldNodes.current
+          .filter(
+            (node) => node.cluster?.kind === "genre" && visible.has(node.id),
+          )
+          .map((node) => node.cluster!.key)
+          .slice(0, 6)
+          .sort(),
+      );
+    },
+    [view, drillGenre],
+  );
+  useEffect(() => {
+    setVisibleCountries(undefined);
+    setDetailCountries([]);
+    setDetailGenres([]);
+    setDrillGenre(null);
+    setAutoDetail(0);
+    setDrillDetail(0);
+    lastCameraKey.current = "";
+    lastDrillKey.current = "";
+  }, [view, tab]);
+  useEffect(() => {
+    try {
+      localStorage.setItem("meow-page-size", String(pageSize));
+    } catch {
+      /* no storage */
+    }
+  }, [pageSize]);
   useEffect(() => {
     try {
       localStorage.setItem("meow-directory-view", view);
@@ -200,12 +290,18 @@ export default function App({ active = true }: { active?: boolean }) {
   });
   const [relay, setRelay] = useState(relayPreference);
   const commitSearch = useCallback((value: string) => {
+    setDrillGenre(null);
+    setWorldScope((value) => value + 1);
+    setDrillDetail(0);
     setQuery(value);
     setPage(0);
     setFavoritesPage(0);
     setPersonalPage(0);
   }, []);
   const clearFilters = () => {
+    setDrillGenre(null);
+    setWorldScope((value) => value + 1);
+    setDrillDetail(0);
     setFilters({
       ...DEFAULT_FILTERS,
     });
@@ -234,6 +330,7 @@ export default function App({ active = true }: { active?: boolean }) {
       codec,
       bitrateMin,
       page,
+      pageSize,
     ],
     placeholderData: keepPreviousData,
     queryFn: ({ signal }) =>
@@ -246,13 +343,15 @@ export default function App({ active = true }: { active?: boolean }) {
           sort,
           codec,
           bitrate_min: String(bitrateMin),
-          offset: String(page * 24),
+          offset: String(page * pageSize),
+          limit: String(pageSize),
         })}`,
         "GET",
         undefined,
         signal,
       ),
-    enabled: setup.data?.initialized === true && tab === "discover",
+    enabled:
+      setup.data?.initialized === true && tab === "discover" && view === "list",
   });
   const favorites = useQuery({
     queryKey: ["favorites", "summary", me.data?.id],
@@ -260,15 +359,22 @@ export default function App({ active = true }: { active?: boolean }) {
     enabled: !!me.data,
   });
   const favoriteStations = useQuery({
-    queryKey: ["favorites", "page", me.data?.id, query, favoritesPage],
+    queryKey: [
+      "favorites",
+      "page",
+      me.data?.id,
+      query,
+      favoritesPage,
+      pageSize,
+    ],
     queryFn: ({ signal }) =>
       api<FavoritesPage>(
-        `/favorites/page?${new URLSearchParams({ q: query, page: String(favoritesPage) })}`,
+        `/favorites/page?${new URLSearchParams({ q: query, page: String(favoritesPage), page_size: String(pageSize) })}`,
         "GET",
         undefined,
         signal,
       ),
-    enabled: !!me.data && tab === "favorites" && active,
+    enabled: !!me.data && tab === "favorites" && active && view === "list",
   });
   useEffect(() => {
     if (favoriteStations.data && favoriteStations.data.page !== favoritesPage)
@@ -288,16 +394,139 @@ export default function App({ active = true }: { active?: boolean }) {
       personalPage,
       personalSource,
       personalCategory,
+      pageSize,
     ],
     queryFn: ({ signal }) =>
       api<PersonalPage>(
-        `/personal-stations?${new URLSearchParams({ q: query, page: String(personalPage), ...(personalSource ? { source_id: personalSource } : {}), category: personalCategory })}`,
+        `/personal-stations?${new URLSearchParams({ q: query, page: String(personalPage), page_size: String(pageSize), ...(personalSource ? { source_id: personalSource } : {}), category: personalCategory })}`,
         "GET",
         undefined,
         signal,
       ),
-    enabled: !!me.data && tab === "personal" && active,
+    enabled: !!me.data && tab === "personal" && active && view === "list",
   });
+  const worldStations = useQuery({
+    queryKey: [
+      tab === "favorites"
+        ? "favorites"
+        : tab === "personal"
+          ? "personal-stations"
+          : "stations",
+      "explore",
+      worldScope,
+      tab === "discover" ? null : me.data?.id,
+      query,
+      tag,
+      country,
+      language,
+      sort,
+      codec,
+      bitrateMin,
+      personalSource,
+      personalCategory,
+      view,
+      tab === "discover" ? worldDetail : 0,
+      tab === "discover" && worldDetail > 0 && !country && view === "globe"
+        ? detailCountries
+        : [],
+      tab === "discover" && worldDetail > 0 && view === "nebula"
+        ? requestedGenres
+        : [],
+    ],
+    queryFn: async ({ signal }) => {
+      if (tab === "personal") {
+        const result = await api<PersonalPage>(
+          `/personal-stations/explore?${new URLSearchParams({ q: query, ...(personalSource ? { source_id: personalSource } : {}), category: personalCategory })}`,
+          "GET",
+          undefined,
+          signal,
+        );
+        return {
+          items: result.items,
+          total: result.total,
+          complete: true,
+          cameraScope: String(worldScope),
+        };
+      }
+      if (tab === "favorites") {
+        const result = await api<Station[]>(
+          "/favorites",
+          "GET",
+          undefined,
+          signal,
+        );
+        const needle = query.toLowerCase();
+        const items = result.filter((station) =>
+          `${station.name} ${station.tags} ${station.country}`
+            .toLowerCase()
+            .includes(needle),
+        );
+        return {
+          items,
+          total: items.length,
+          complete: true,
+          cameraScope: String(worldScope),
+        };
+      }
+      const result = await api<Exploration>(
+        `/stations/explore?${new URLSearchParams({ q: query, tag, country, language, sort, codec, bitrate_min: String(bitrateMin), view, detail: String(worldDetail), countries: worldDetail > 0 && !country && view === "globe" ? detailCountries.join(",") : "", genres: worldDetail > 0 && view === "nebula" ? requestedGenres.join(",") : "" })}`,
+        "GET",
+        undefined,
+        signal,
+      );
+      return { ...result, cameraScope: String(worldScope) };
+    },
+    staleTime: 600_000,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[0] ===
+        (tab === "favorites"
+          ? "favorites"
+          : tab === "personal"
+            ? "personal-stations"
+            : "stations") &&
+      previousQuery?.queryKey[2] === worldScope &&
+      previousQuery?.queryKey[3] === (tab === "discover" ? null : me.data?.id)
+        ? previous
+        : undefined,
+    enabled:
+      active &&
+      view !== "list" &&
+      setup.data?.initialized === true &&
+      (tab === "discover" || !!me.data),
+  });
+  useEffect(
+    () => setWorldGenre(null),
+    [
+      tab,
+      query,
+      tag,
+      country,
+      language,
+      codec,
+      bitrateMin,
+      personalSource,
+      personalCategory,
+    ],
+  );
+  const allWorldStations = worldStations.data?.items || EMPTY_STATIONS;
+  worldNodes.current = allWorldStations;
+  const worldGenreCounts = useMemo(
+    () => countGenres(allWorldStations),
+    [allWorldStations],
+  );
+  useEffect(() => {
+    if (worldGenre !== null && worldGenreCounts[worldGenre] === 0)
+      setWorldGenre(null);
+  }, [worldGenre, worldGenreCounts]);
+  const filteredWorldStations = useMemo(
+    () =>
+      view === "nebula" && worldGenre !== null
+        ? allWorldStations.filter(
+            (station) => genreIndex(station) === worldGenre,
+          )
+        : allWorldStations,
+    [view, worldGenre, allWorldStations],
+  );
   useEffect(() => {
     if (personalStations.data && personalStations.data.page !== personalPage)
       setPersonalPage(personalStations.data.page);
@@ -388,6 +617,7 @@ export default function App({ active = true }: { active?: boolean }) {
     },
   });
   const toggleSave = (station: Station) => {
+    if (station.cluster) return;
     if (!me.data) {
       pendingAction.current = {
         kind: "save",
@@ -440,6 +670,7 @@ export default function App({ active = true }: { active?: boolean }) {
     setSelection((v) => v + 1);
   };
   const chooseProxy = (station: Station, remember = false) => {
+    if (station.cluster) return;
     if (!me.data) {
       pendingAction.current = { kind: "proxy", station, remember };
       navigate("/login");
@@ -454,6 +685,31 @@ export default function App({ active = true }: { active?: boolean }) {
     selectStation(station);
   };
   const choose = (station: Station) => {
+    if (station.cluster) {
+      const cluster = station.cluster;
+      const key = `${cluster.kind}:${cluster.key}`;
+      const sameCluster = lastDrillKey.current === key;
+      if (sameCluster && drillDetail >= 8) {
+        setNotice("请按国家或关键词缩小范围，继续探索电台");
+        return;
+      }
+      setDrillDetail((previous) =>
+        sameCluster ? Math.min(8, previous + 1) : 1,
+      );
+      lastDrillKey.current = key;
+      if (cluster.kind === "country") {
+        setDrillGenre(null);
+        setFilters((previous) => ({ ...previous, country: cluster.key }));
+      } else {
+        setDrillGenre(cluster.key);
+        setFilters((previous) => ({
+          ...previous,
+          tag: cluster.key === "*" ? "" : cluster.key,
+        }));
+        setDetailGenres([cluster.key]);
+      }
+      return;
+    }
     if (relayPreference || requiresRelay(station)) {
       chooseProxy(station);
       return;
@@ -491,17 +747,21 @@ export default function App({ active = true }: { active?: boolean }) {
     else chooseProxy(action.station, action.remember);
   }, [me.data, settings.data, active]);
   const visible =
-    tab === "favorites"
-      ? favoriteStations.data?.items || []
-      : tab === "personal"
-        ? personalStations.data?.items || []
-        : stations.data || [];
+    view !== "list"
+      ? filteredWorldStations
+      : tab === "favorites"
+        ? favoriteStations.data?.items || []
+        : tab === "personal"
+          ? personalStations.data?.items || []
+          : stations.data || [];
   const currentQuery =
-    tab === "favorites"
-      ? favoriteStations
-      : tab === "personal"
-        ? personalStations
-        : stations;
+    view !== "list"
+      ? worldStations
+      : tab === "favorites"
+        ? favoriteStations
+        : tab === "personal"
+          ? personalStations
+          : stations;
   const currentPage =
     tab === "favorites"
       ? (favoriteStations.data?.page ?? favoritesPage)
@@ -510,11 +770,11 @@ export default function App({ active = true }: { active?: boolean }) {
         : page;
   const favoritePageCount = Math.max(
     1,
-    Math.ceil((favoriteStations.data?.total || 0) / 24),
+    Math.ceil((favoriteStations.data?.total || 0) / pageSize),
   );
   const personalPageCount = Math.max(
     1,
-    Math.ceil((personalStations.data?.total || 0) / 24),
+    Math.ceil((personalStations.data?.total || 0) / pageSize),
   );
   const changePage = (next: number) => {
     if (tab === "favorites") setFavoritesPage(next);
@@ -748,7 +1008,7 @@ export default function App({ active = true }: { active?: boolean }) {
           }}
           theme={theme}
           station={selected}
-          stations={visible}
+          stations={visible.filter((station) => !station.cluster)}
           favorites={favorites.data?.presets || []}
           favoritesCount={favorites.data?.ids.length || 0}
           onSelect={choose}
@@ -818,6 +1078,8 @@ export default function App({ active = true }: { active?: boolean }) {
                   sourceId={personalSource}
                   category={personalCategory}
                   onApply={(source, category) => {
+                    setDrillGenre(null);
+                    setWorldScope((value) => value + 1);
                     setPersonalSource(source);
                     setPersonalCategory(category);
                     setPersonalPage(0);
@@ -827,7 +1089,16 @@ export default function App({ active = true }: { active?: boolean }) {
               {tab === "discover" && active && (
                 <StationFilters
                   value={filters}
+                  visibleCountries={
+                    view === "list" ||
+                    (view === "nebula" && !visibleCountries?.length)
+                      ? undefined
+                      : visibleCountries
+                  }
                   onApply={(next) => {
+                    setDrillGenre(null);
+                    setWorldScope((value) => value + 1);
+                    setDrillDetail(0);
                     setFilters(next);
                     setPage(0);
                   }}
@@ -840,56 +1111,95 @@ export default function App({ active = true }: { active?: boolean }) {
               "支持电台名称、FM 或频率关键词；也可使用筛选按钮按国家和语言浏览。",
             )}
           </p>
-          <div
-            className="directory-view-switch"
-            role="group"
-            aria-label={tr("电台视图")}
-          >
-            <button
-              type="button"
-              aria-pressed={view === "list"}
-              onClick={() => setView("list")}
+          <div className="directory-toolbar">
+            <div
+              className="directory-view-switch"
+              role="group"
+              aria-label={tr("电台视图")}
             >
-              <LayoutGrid size={16} />
-              {tr("列表")}
-            </button>
-            <button
-              type="button"
-              aria-pressed={view === "globe"}
-              onClick={() => setView("globe")}
-            >
-              <Globe2 size={16} />
-              {tr("地球")}
-            </button>
-            <button
-              type="button"
-              aria-pressed={view === "nebula"}
-              onClick={() => setView("nebula")}
-            >
-              <Sparkles size={16} />
-              {tr("星云")}
-            </button>
+              <button
+                type="button"
+                aria-pressed={view === "list"}
+                onClick={() => setView("list")}
+              >
+                <LayoutGrid size={16} />
+                {tr("列表")}
+              </button>
+              <button
+                type="button"
+                aria-pressed={view === "globe"}
+                onClick={() => setView("globe")}
+              >
+                <Globe2 size={16} />
+                {tr("地球")}
+              </button>
+              <button
+                type="button"
+                aria-pressed={view === "nebula"}
+                onClick={() => setView("nebula")}
+              >
+                <Sparkles size={16} />
+                {tr("星云")}
+              </button>
+            </div>
+            {view === "list" && (
+              <label className="directory-page-size">
+                {tr("每页数量")}
+                <select
+                  aria-label={tr("每页数量")}
+                  value={pageSize}
+                  onChange={(event) => {
+                    setPageSize(Number(event.target.value));
+                    setPage(0);
+                    setFavoritesPage(0);
+                    setPersonalPage(0);
+                  }}
+                >
+                  {[24, 100, 500, 1000].map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
           <p className="search-progress" role="status" aria-live="polite">
             {currentQuery.isFetching
-              ? tab === "discover" && stations.isPlaceholderData
-                ? tr("正在搜索，暂时显示上一次结果…")
-                : tr("正在寻找电台…")
+              ? view !== "list" && currentQuery.isPending
+                ? tr("正在加载视野内的电台…")
+                : view === "list" &&
+                    tab === "discover" &&
+                    stations.isPlaceholderData
+                  ? tr("正在搜索，暂时显示上一次结果…")
+                  : tr("正在寻找电台…")
               : currentQuery.isSuccess
-                ? tr("{{v0}} {{v1}} 个电台", {
-                    v0:
-                      tab === "favorites"
-                        ? tr("收藏中匹配")
-                        : tab === "personal"
-                          ? tr("个人源中匹配")
-                          : tr("本页找到"),
-                    v1:
-                      tab === "favorites"
-                        ? favoriteStations.data?.total || 0
-                        : tab === "personal"
-                          ? personalStations.data?.total || 0
-                          : visible.length,
-                  })
+                ? view !== "list"
+                  ? worldStations.data?.total != null
+                    ? tr("目录收录 {{v0}} 个电台 · 按视野展开", {
+                        v0: worldStations.data.total,
+                      })
+                    : tr("已加载 {{v0}} 个节点", {
+                        v0: allWorldStations.length,
+                      })
+                  : tr("{{v0}} {{v1}} 个电台", {
+                      v0:
+                        tab === "favorites"
+                          ? tr("收藏中匹配")
+                          : tab === "personal"
+                            ? tr("个人源中匹配")
+                            : view === "list"
+                              ? tr("本页找到")
+                              : tr("找到"),
+                      v1:
+                        view !== "list"
+                          ? visible.length
+                          : tab === "favorites"
+                            ? favoriteStations.data?.total || 0
+                            : tab === "personal"
+                              ? personalStations.data?.total || 0
+                              : visible.length,
+                    })
                 : ""}
           </p>
           {(tab === "favorites" || tab === "personal") && !me.data ? (
@@ -1034,7 +1344,7 @@ export default function App({ active = true }: { active?: boolean }) {
               <StationWorld
                 view={view}
                 active={active}
-                stations={visible}
+                stations={allWorldStations}
                 selectedId={selected?.id}
                 savedIds={savedIds}
                 onChoose={choose}
@@ -1042,6 +1352,11 @@ export default function App({ active = true }: { active?: boolean }) {
                 onSave={toggleSave}
                 saving={save.isPending}
                 onList={() => setView("list")}
+                genreCounts={worldGenreCounts}
+                genreFilter={worldGenre}
+                onGenreFilter={setWorldGenre}
+                onVisibility={onWorldVisibility}
+                cameraScope={worldStations.data?.cameraScope}
               />
             </Suspense>
           ) : (
@@ -1117,55 +1432,58 @@ export default function App({ active = true }: { active?: boolean }) {
               ))}
             </div>
           )}
-          {!currentQuery.isError && (tab === "discover" || !!me.data) && (
-            <div className="pagination">
-              <span>
-                {currentQuery.isFetching
-                  ? tr("正在加载电台")
-                  : tab === "favorites"
-                    ? tr("第 {{page}} / {{pages}} 页 · 共 {{total}} 个收藏", {
-                        page: currentPage + 1,
-                        pages: favoritePageCount,
-                        total: favoriteStations.data?.total || 0,
-                      })
-                    : tab === "personal"
-                      ? tr("第 {{page}} / {{pages}} 页 · {{count}} 个电台", {
+          {view === "list" &&
+            !currentQuery.isError &&
+            (tab === "discover" || !!me.data) && (
+              <div className="pagination">
+                <span>
+                  {currentQuery.isFetching
+                    ? tr("正在加载电台")
+                    : tab === "favorites"
+                      ? tr("第 {{page}} / {{pages}} 页 · 共 {{total}} 个收藏", {
                           page: currentPage + 1,
-                          pages: personalPageCount,
-                          count: personalStations.data?.total || 0,
+                          pages: favoritePageCount,
+                          total: favoriteStations.data?.total || 0,
                         })
-                      : tr("第 {{v0}} 页 · {{v1}} 个频道", {
-                          v0: currentPage + 1,
-                          v1: visible.length,
-                        })}
-              </span>
-              <div>
-                <button
-                  className="icon-button"
-                  aria-label={tr("上一页")}
-                  disabled={currentPage === 0 || currentQuery.isFetching}
-                  onClick={() => changePage(currentPage - 1)}
-                >
-                  <ChevronLeft size={18} />
-                </button>
-                <button
-                  className="icon-button"
-                  aria-label={tr("下一页")}
-                  disabled={
-                    currentQuery.isFetching ||
-                    (tab === "favorites"
-                      ? currentPage + 1 >= favoritePageCount
                       : tab === "personal"
-                        ? currentPage + 1 >= personalPageCount
-                        : visible.length < 24 || currentPage >= 416)
-                  }
-                  onClick={() => changePage(currentPage + 1)}
-                >
-                  <ChevronRight size={18} />
-                </button>
+                        ? tr("第 {{page}} / {{pages}} 页 · {{count}} 个电台", {
+                            page: currentPage + 1,
+                            pages: personalPageCount,
+                            count: personalStations.data?.total || 0,
+                          })
+                        : tr("第 {{v0}} 页 · {{v1}} 个频道", {
+                            v0: currentPage + 1,
+                            v1: visible.length,
+                          })}
+                </span>
+                <div>
+                  <button
+                    className="icon-button"
+                    aria-label={tr("上一页")}
+                    disabled={currentPage === 0 || currentQuery.isFetching}
+                    onClick={() => changePage(currentPage - 1)}
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button
+                    className="icon-button"
+                    aria-label={tr("下一页")}
+                    disabled={
+                      currentQuery.isFetching ||
+                      (tab === "favorites"
+                        ? currentPage + 1 >= favoritePageCount
+                        : tab === "personal"
+                          ? currentPage + 1 >= personalPageCount
+                          : visible.length < pageSize ||
+                            currentPage >= Math.floor(10000 / pageSize))
+                    }
+                    onClick={() => changePage(currentPage + 1)}
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
         </section>
       </main>
       <footer className="site-footer">

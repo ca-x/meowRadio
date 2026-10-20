@@ -6,6 +6,7 @@ export type User = {
   avatar_url?: string | null;
 };
 export type Station = {
+  cluster?: { kind: "country" | "genre"; key: string; count: number | null };
   id: string;
   name: string;
   url: string;
@@ -20,6 +21,11 @@ export type Station = {
   personal?: boolean;
   source_id?: string;
   source_name?: string;
+};
+export type Exploration = {
+  items: Station[];
+  total: number | null;
+  complete: boolean;
 };
 export type Settings = {
   proxy_configured: boolean;

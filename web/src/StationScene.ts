@@ -2,6 +2,8 @@ import {
   AdditiveBlending,
   AmbientLight,
   BufferGeometry,
+  BufferAttribute,
+  Matrix4,
   CanvasTexture,
   Color,
   DirectionalLight,
@@ -15,6 +17,7 @@ import {
   Raycaster,
   Scene,
   SphereGeometry,
+  ShaderMaterial,
   Sprite,
   SpriteMaterial,
   SRGBColorSpace,
@@ -27,15 +30,32 @@ import { geoEquirectangular, geoGraticule10, geoPath } from "d3-geo";
 import type { Station } from "./api";
 import {
   countries,
+  markerInViewport,
   genreGroups,
   genreIndex,
   hash,
-  nebulaPosition,
+  nebulaPositions,
   stationLocation,
 } from "./stationSpatial";
 
 export type SceneView = "globe" | "nebula";
+export type SceneVisibility = {
+  ids: string[];
+  countries: string[];
+  /** -1 means the visible category contains overlapping/unknown aggregates. */
+  genreCounts: number[];
+  distance: number;
+  cameraKey: string;
+};
+export type CameraState = {
+  position: [number, number, number];
+  target: [number, number, number];
+  fitFactor: number;
+};
 export type StationScene = {
+  setGenreFilter: (index: number | null) => void;
+  getCameraState: () => CameraState;
+  restoreCameraState: (state: CameraState) => void;
   focus: (id: string) => void;
   select: (id?: string) => void;
   reset: () => void;
@@ -104,6 +124,7 @@ export function createStationScene(
   onPick: (id: string) => void,
   onHover: (id: string | null) => void,
   onLost: () => void,
+  onVisibility?: (visibility: SceneVisibility) => void,
 ): StationScene {
   // Three r186 requires WebGL 2, the same renderer used by RoamDial.
   const renderer = new WebGLRenderer({
@@ -130,8 +151,15 @@ export function createStationScene(
   const world = new Group();
   scene.add(world);
   const glow = glowTexture();
-  const markers: Sprite[] = [];
-  const markerById = new Map<string, Sprite>();
+  const markerPositions: Vector3[] = [];
+  const markerIds: string[] = [];
+  const markerById = new Map<string, number>();
+  const markerColors: number[] = [];
+  const markerStations: Station[] = [];
+  const markerGenres: number[] = [];
+  let genreFilter: number | null = null;
+  let visibilityTimer: ReturnType<typeof setTimeout> | undefined;
+  let lastVisibility = "";
   const textures: CanvasTexture[] = [glow];
   let frame = 0;
   let active = true;
@@ -148,11 +176,10 @@ export function createStationScene(
     frame = 0;
     if (disposed || !active || !intersecting || document.hidden) return;
     const changing = controls.update();
-    if (view === "globe") {
-      for (const marker of markers)
-        marker.visible = marker.position.dot(camera.position) > 1.45 ** 2;
-    }
+    updateVisibleMarkers();
     renderer.render(scene, camera);
+    clearTimeout(visibilityTimer);
+    visibilityTimer = setTimeout(emitVisibility, 180);
     if (changing) requestRender();
   }
 
@@ -185,7 +212,9 @@ export function createStationScene(
     // Each genre has a volumetric particle cloud; positions are deterministic.
     const positions: number[] = [];
     const colors: number[] = [];
+    const occupied = new Set(stations.map(genreIndex));
     for (let group = 0; group < genreGroups.length; group++) {
+      if (!occupied.has(group)) continue;
       const angle = (group * Math.PI * 2) / genreGroups.length;
       const color = new Color(genreGroups[group].color);
       for (let index = 0; index < 220; index++) {
@@ -220,7 +249,9 @@ export function createStationScene(
   }
 
   const placeCounts = new Map<string, number>();
+  const nebula = view === "nebula" ? nebulaPositions(stations) : null;
   for (const station of stations) {
+    if (markerById.has(station.id)) continue;
     let position: Vector3;
     if (view === "globe") {
       const location = stationLocation(station);
@@ -237,30 +268,146 @@ export function createStationScene(
           .normalize();
         if (tangent.lengthSq() === 0) tangent.set(1, 0, 0);
         const bitangent = new Vector3().crossVectors(normal, tangent);
-        const radius = Math.sqrt(index) * 0.026;
+        const radius = Math.min(0.075, Math.sqrt(index) * 0.006);
         position
           .addScaledVector(tangent, Math.cos(index * 2.399963) * radius)
           .addScaledVector(bitangent, Math.sin(index * 2.399963) * radius)
           .normalize()
           .multiplyScalar(1.465);
       }
-    } else position = new Vector3(...nebulaPosition(station, stations));
-    const material = new SpriteMaterial({
-      map: glow,
-      color:
-        view === "globe" ? "#ffd19a" : genreGroups[genreIndex(station)].color,
-      transparent: true,
-      opacity: 1,
-      depthWrite: false,
-      blending: AdditiveBlending,
-    });
-    const marker = new Sprite(material);
-    marker.position.copy(position);
-    marker.scale.setScalar(view === "globe" ? 0.085 : 0.12);
-    marker.userData.stationId = station.id;
-    world.add(marker);
-    markers.push(marker);
-    markerById.set(station.id, marker);
+    } else position = new Vector3(...nebula!.get(station.id)!);
+    markerById.set(station.id, markerPositions.length);
+    markerPositions.push(position);
+    markerIds.push(station.id);
+    markerStations.push(station);
+    markerGenres.push(genreIndex(station));
+    const color = new Color(
+      view === "globe" ? "#ffd19a" : genreGroups[genreIndex(station)].color,
+    );
+    markerColors.push(color.r, color.g, color.b);
+  }
+  // All station lights share one GPU draw call, including large world catalogs.
+  const markerGeometry = new BufferGeometry();
+  markerGeometry.setAttribute(
+    "position",
+    new Float32BufferAttribute(
+      markerPositions.flatMap((position) => position.toArray()),
+      3,
+    ),
+  );
+  const colorAttribute = new Float32BufferAttribute(markerColors, 3);
+  markerGeometry.setAttribute("color", colorAttribute);
+  const baseSize = view === "globe" ? 0.045 : 0.055;
+  const sizeAttribute = new Float32BufferAttribute(
+    new Float32Array(
+      markerStations.map((station) => baseSize * (station.cluster ? 2.2 : 1)),
+    ),
+    1,
+  );
+  markerGeometry.setAttribute("pointSize", sizeAttribute);
+  const markerMaterial = new ShaderMaterial({
+    uniforms: { viewportHeight: { value: 510 } },
+    vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+    vertexShader: `attribute float pointSize;
+      uniform float viewportHeight;
+      varying vec3 pointColor;
+      void main() {
+        pointColor = color;
+        vec4 positionInView = modelViewMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * positionInView;
+        gl_PointSize = clamp(pointSize * viewportHeight / -positionInView.z, 1.5, 60.0);
+      }`,
+    fragmentShader: `varying vec3 pointColor;
+      void main() {
+        float radius = length(gl_PointCoord - vec2(0.5)) * 2.0;
+        if (radius > 1.0) discard;
+        float alpha = pow(1.0 - radius, 1.5);
+        gl_FragColor = vec4(pointColor, alpha);
+        #include <colorspace_fragment>
+      }`,
+  });
+  const stationPoints = new Points(markerGeometry, markerMaterial);
+  stationPoints.renderOrder = 2;
+  world.add(stationPoints);
+  let selectedIndex: number | undefined;
+  const visibleIndices = new Uint32Array(markerIds.length);
+  const indexAttribute = new BufferAttribute(visibleIndices, 1);
+  markerGeometry.setIndex(indexAttribute);
+  const projection = new Matrix4();
+  let visibleCount = 0;
+  function updateVisibleMarkers() {
+    camera.updateMatrixWorld();
+    projection.multiplyMatrices(
+      camera.projectionMatrix,
+      camera.matrixWorldInverse,
+    );
+    visibleCount = 0;
+    for (let index = 0; index < markerPositions.length; index++) {
+      const position = markerPositions[index];
+      if (genreFilter !== null && markerGenres[index] !== genreFilter) continue;
+      if (
+        !markerInViewport(
+          position,
+          camera.position,
+          projection.elements,
+          view === "globe",
+        )
+      )
+        continue;
+      visibleIndices[visibleCount++] = index;
+    }
+    markerGeometry.setDrawRange(0, visibleCount);
+    indexAttribute.needsUpdate = true;
+  }
+  function emitVisibility() {
+    if (disposed || !active) return;
+    const ids: string[] = [];
+    const countries = new Map<string, number>();
+    const screen = new Vector3();
+    const genreCounts = genreGroups.map(() => 0);
+    for (let offset = 0; offset < visibleCount; offset++) {
+      const index = visibleIndices[offset];
+      const station = markerStations[index];
+      ids.push(station.id);
+      const country = station.countrycode.trim().toUpperCase();
+      if (country) {
+        screen.copy(markerPositions[index]).project(camera);
+        const distance = screen.x * screen.x + screen.y * screen.y;
+        countries.set(
+          country,
+          Math.min(countries.get(country) ?? Infinity, distance),
+        );
+      }
+      const genre = markerGenres[index];
+      if (
+        station.cluster?.kind === "genre" ||
+        station.cluster?.count === null
+      ) {
+        // Raw directory tags overlap; adding their station totals invents a union count.
+        genreCounts[genre] = -1;
+      } else if (genreCounts[genre] >= 0) {
+        genreCounts[genre] += station.cluster ? station.cluster.count! : 1;
+      }
+    }
+    const payload = {
+      ids,
+      countries: [...countries.keys()].sort(
+        (a, b) => countries.get(a)! - countries.get(b)! || a.localeCompare(b),
+      ),
+      genreCounts,
+      distance: camera.position.distanceTo(controls.target),
+      cameraKey: [...camera.position.toArray(), ...controls.target.toArray()]
+        .map((value) => value.toFixed(3))
+        .join(","),
+    };
+    const signature = JSON.stringify(payload);
+    if (signature !== lastVisibility) {
+      lastVisibility = signature;
+      onVisibility?.(payload);
+    }
   }
 
   // A quiet, fixed star field establishes depth without idle animation.
@@ -316,11 +463,27 @@ export function createStationScene(
       (-(event.clientY - rect.top) / rect.height) * 2 + 1,
     );
     raycaster.setFromCamera(pointer, camera);
-    return raycaster.intersectObjects(
-      markers.filter((marker) => marker.visible),
-      false,
-    )[0]?.object.userData.stationId as string | undefined;
+    raycaster.params.Points.threshold = 0.08;
+    let closest: string | undefined;
+    let closestDistance = 144;
+    for (const hit of raycaster.intersectObject(stationPoints, false)) {
+      const index = hit.index;
+      if (index === undefined) continue;
+      const position = markerPositions[index];
+      if (view === "globe" && position.dot(camera.position) <= 1.45 ** 2)
+        continue;
+      const screen = position.clone().project(camera);
+      const dx = ((screen.x - pointer.x) * rect.width) / 2;
+      const dy = ((screen.y - pointer.y) * rect.height) / 2;
+      const distance = dx * dx + dy * dy;
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closest = markerIds[index];
+      }
+    }
+    return closest;
   }
+
   function pointerDown(event: PointerEvent) {
     pointerCount++;
     if (pointerCount > 1) gesture = true;
@@ -346,7 +509,10 @@ export function createStationScene(
       ) < 6
     ) {
       const id = pick(event);
-      if (id) onPick(id);
+      if (id) {
+        if (markerStations[markerById.get(id)!].cluster) focusMarker(id);
+        onPick(id);
+      }
     }
     if (!pointerCount) {
       pointerStart = null;
@@ -379,6 +545,7 @@ export function createStationScene(
     const { width, height } = host.getBoundingClientRect();
     if (width <= 0 || height <= 0) return;
     renderer.setSize(width, height);
+    markerMaterial.uniforms.viewportHeight.value = renderer.domElement.height;
     camera.aspect = width / height;
     const nextFit = Math.max(1, 1.15 / camera.aspect);
     const offset = camera.position.clone().sub(controls.target);
@@ -398,44 +565,65 @@ export function createStationScene(
   visibility.observe(host);
   requestRender();
 
+  function focusMarker(id: string) {
+    const index = markerById.get(id);
+    if (index === undefined) return;
+    const position = markerPositions[index];
+    controls.target.set(0, 0, 0);
+    if (view === "globe") {
+      const distance = markerStations[index].cluster
+        ? Math.min(camera.position.length(), 3.2)
+        : camera.position.length();
+      camera.position.copy(position).normalize().multiplyScalar(distance);
+    } else {
+      controls.target.copy(position);
+      camera.position.copy(position).add(new Vector3(0, 0, 3.4));
+    }
+    controls.update();
+    requestRender();
+  }
   return {
-    focus(id) {
-      const marker = markerById.get(id);
-      if (!marker) return;
-      controls.target.set(0, 0, 0);
-      if (view === "globe") {
-        const distance = camera.position.length();
-        camera.position
-          .copy(marker.position)
-          .normalize()
-          .multiplyScalar(distance);
-      } else {
-        controls.target.copy(marker.position);
-        camera.position.copy(marker.position).add(new Vector3(0, 0, 3.4));
-      }
+    focus: focusMarker,
+    setGenreFilter(index) {
+      genreFilter = index;
+      requestRender();
+    },
+    getCameraState() {
+      return {
+        position: camera.position.toArray(),
+        target: controls.target.toArray(),
+        fitFactor,
+      };
+    },
+    restoreCameraState(state) {
+      fitFactor = state.fitFactor;
+      camera.position.fromArray(state.position);
+      controls.target.fromArray(state.target);
       controls.update();
       requestRender();
     },
     select(id) {
-      for (const marker of markers) {
-        const chosen = marker.userData.stationId === id;
-        marker.scale.setScalar(
-          (view === "globe" ? 0.085 : 0.12) * (chosen ? 1.8 : 1),
+      if (selectedIndex !== undefined) {
+        colorAttribute.setXYZ(
+          selectedIndex,
+          ...(markerColors.slice(selectedIndex * 3, selectedIndex * 3 + 3) as [
+            number,
+            number,
+            number,
+          ]),
         );
-        marker.material.color.set(
-          chosen
-            ? "#ffffff"
-            : view === "globe"
-              ? "#ffd19a"
-              : genreGroups[
-                  genreIndex(
-                    stations.find(
-                      (item) => item.id === marker.userData.stationId,
-                    )!,
-                  )
-                ].color,
+        sizeAttribute.setX(
+          selectedIndex,
+          baseSize * (markerStations[selectedIndex].cluster ? 2.2 : 1),
         );
       }
+      selectedIndex = id ? markerById.get(id) : undefined;
+      if (selectedIndex !== undefined) {
+        colorAttribute.setXYZ(selectedIndex, 1, 1, 1);
+        sizeAttribute.setX(selectedIndex, baseSize * 2.5);
+      }
+      colorAttribute.needsUpdate = true;
+      sizeAttribute.needsUpdate = true;
       requestRender();
     },
     reset() {
@@ -476,6 +664,7 @@ export function createStationScene(
       if (disposed) return;
       disposed = true;
       cancelAnimationFrame(frame);
+      clearTimeout(visibilityTimer);
       resize.disconnect();
       visibility.disconnect();
       controls.dispose();

@@ -12,10 +12,10 @@ use axum::{
 use futures_util::TryStreamExt;
 use serde::{Deserialize, Serialize};
 
-const PAGE_SIZE: usize = 24;
-
 #[derive(Default, Deserialize)]
 struct PageQuery {
+    #[serde(default = "crate::catalog::default_page_size")]
+    page_size: u32,
     #[serde(default)]
     q: String,
     #[serde(default)]
@@ -57,6 +57,10 @@ async fn page(
     if query.q.len() > 100 {
         return Err(AppError::bad("搜索条件过长或页码超出范围"));
     }
+    if ![24, 100, 500, 1000].contains(&query.page_size) {
+        return Err(AppError::bad("不支持的分页大小"));
+    }
+    let page_size = query.page_size as usize;
     let requested_page = query.page as usize;
     let mut tx = state.db.begin().await?;
     let (items, total, page) = if query.q.is_empty() {
@@ -65,13 +69,13 @@ async fn page(
             .fetch_one(&mut *tx)
             .await?;
         let total = total as usize;
-        let page = requested_page.min(total.saturating_sub(1) / PAGE_SIZE);
+        let page = requested_page.min(total.saturating_sub(1) / page_size);
         let rows: Vec<String> = sqlx::query_scalar(
             "SELECT station_json FROM favorites WHERE user_id=? ORDER BY created_at DESC, station_id LIMIT ? OFFSET ?",
         )
         .bind(user.id)
-        .bind(PAGE_SIZE as i64)
-        .bind((page * PAGE_SIZE) as i64)
+        .bind(page_size as i64)
+        .bind((page * page_size) as i64)
         .fetch_all(&mut *tx)
         .await?;
         let items = rows
@@ -88,8 +92,8 @@ async fn page(
         )
         .bind(user.id)
         .fetch(&mut *tx);
-        let mut items = Vec::with_capacity(PAGE_SIZE);
-        let mut last_page = Vec::with_capacity(PAGE_SIZE);
+        let mut items = Vec::with_capacity(page_size);
+        let mut last_page = Vec::with_capacity(page_size);
         let mut total = 0usize;
         while let Some(json) = rows.try_next().await? {
             let item = station(&json)?;
@@ -97,16 +101,16 @@ async fn page(
             if !text.to_lowercase().contains(&needle) {
                 continue;
             }
-            if total.is_multiple_of(PAGE_SIZE) {
+            if total.is_multiple_of(page_size) {
                 last_page.clear();
             }
-            if total / PAGE_SIZE == requested_page {
+            if total / page_size == requested_page {
                 items.push(item.clone());
             }
             last_page.push(item);
             total += 1;
         }
-        let page = requested_page.min(total.saturating_sub(1) / PAGE_SIZE);
+        let page = requested_page.min(total.saturating_sub(1) / page_size);
         if page != requested_page {
             items = last_page;
         }
@@ -117,7 +121,7 @@ async fn page(
         items,
         total,
         page,
-        page_size: PAGE_SIZE,
+        page_size,
     }))
 }
 

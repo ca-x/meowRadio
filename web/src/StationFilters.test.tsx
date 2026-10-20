@@ -102,3 +102,23 @@ describe("restrained station filtering", () => {
     ).toBe("");
   });
 });
+
+it("offers only visible countries while keeping the worldwide reset", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={client}>
+      <StationFilters
+        value={{ ...DEFAULT_FILTERS }}
+        onApply={vi.fn()}
+        visibleCountries={["CN"]}
+      />
+    </QueryClientProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "筛选电台" }));
+  await screen.findByRole("option", { name: /中国/ });
+  expect(screen.queryByRole("option", { name: /法国/ })).toBeNull();
+  expect(screen.getByRole("option", { name: "世界各地" })).toBeTruthy();
+  expect(screen.getByRole("combobox", { name: "国家 / 地区" })).toBeTruthy();
+});

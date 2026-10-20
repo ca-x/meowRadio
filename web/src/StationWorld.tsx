@@ -1,7 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Cable, Heart, Minus, Play, Plus, RotateCcw } from "lucide-react";
+import {
+  Cable,
+  Heart,
+  Minus,
+  Play,
+  Plus,
+  RotateCcw,
+  Search,
+} from "lucide-react";
 import type { Station } from "./api";
-import type { StationScene } from "./StationScene";
+import type {
+  CameraState,
+  SceneVisibility,
+  StationScene,
+} from "./StationScene";
 import {
   genreGroups,
   genreIndex,
@@ -15,6 +27,7 @@ import "./station-world.css";
 export type WorldView = "globe" | "nebula";
 type Props = {
   view: WorldView;
+  cameraScope?: string;
   active: boolean;
   stations: Station[];
   selectedId?: string;
@@ -24,12 +37,17 @@ type Props = {
   onSave: (station: Station) => void;
   onList: () => void;
   saving: boolean;
+  genreCounts: number[];
+  onVisibility?: (visibility: SceneVisibility) => void;
+  genreFilter: number | null;
+  onGenreFilter: (genre: number | null) => void;
 };
 
 export default function StationWorld(props: Props) {
   useTranslation();
   const {
     view,
+    cameraScope,
     stations,
     active,
     selectedId,
@@ -39,9 +57,18 @@ export default function StationWorld(props: Props) {
     onSave,
     onList,
     saving,
+
+    genreFilter,
+    onGenreFilter,
   } = props;
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<StationScene | null>(null);
+  const cameraState = useRef<{
+    view: WorldView;
+    scope?: string;
+    state: CameraState;
+  } | null>(null);
+  const [visibility, setVisibility] = useState<SceneVisibility | null>(null);
   const callbacks = useRef(props);
   callbacks.current = props;
   const [focusedId, setFocusedId] = useState<string>();
@@ -50,19 +77,31 @@ export default function StationWorld(props: Props) {
     "loading",
   );
   const [attempt, setAttempt] = useState(0);
+  const visibleStations = useMemo(() => {
+    const ids = new Set(visibility?.ids || []);
+    const seen = new Set<string>();
+    return stations.filter((station) => {
+      if (!ids.has(station.id) || seen.has(station.id)) return false;
+      seen.add(station.id);
+      return true;
+    });
+  }, [stations, visibility]);
+  const visibleGenreCounts = visibleStations.reduce(
+    (counts, station) => {
+      counts[genreIndex(station)]++;
+      return counts;
+    },
+    genreGroups.map(() => 0),
+  );
   const focused =
-    stations.find((station) => station.id === focusedId) ||
-    stations.find((station) => station.id === selectedId) ||
-    stations[0];
-  const hovered = stations.find((station) => station.id === hoveredId);
+    visibleStations.find((station) => station.id === focusedId) ||
+    visibleStations.find((station) => station.id === selectedId) ||
+    visibleStations[0];
+  const hovered = visibleStations.find((station) => station.id === hoveredId);
   const location = focused && stationLocation(focused);
   const locatedCount = useMemo(
-    () => stations.filter((station) => stationLocation(station)).length,
-    [stations],
-  );
-  const presentGenres = useMemo(
-    () => new Set(stations.map(genreIndex)),
-    [stations],
+    () => visibleStations.filter((station) => stationLocation(station)).length,
+    [visibleStations],
   );
 
   useEffect(() => {
@@ -70,6 +109,7 @@ export default function StationWorld(props: Props) {
     let instance: StationScene | undefined;
     setStatus("loading");
     setHoveredId(null);
+    setVisibility(null);
     void import("./StationScene")
       .then(({ createStationScene }) => {
         if (cancelled || !host.current) return;
@@ -91,10 +131,23 @@ export default function StationWorld(props: Props) {
             scene.current = null;
             setStatus("unavailable");
           },
+          (next) => {
+            if (cancelled) return;
+            setVisibility(next);
+            callbacks.current.onVisibility?.(next);
+          },
         );
         scene.current = instance;
         instance.setActive(callbacks.current.active);
         instance.select(callbacks.current.selectedId);
+        instance.setGenreFilter(callbacks.current.genreFilter);
+        if (
+          cameraState.current?.view === view &&
+          cameraState.current.scope === cameraScope
+        )
+          instance.restoreCameraState(cameraState.current.state);
+        else if (callbacks.current.selectedId)
+          instance.focus(callbacks.current.selectedId);
         setStatus("ready");
       })
       .catch(() => {
@@ -102,18 +155,25 @@ export default function StationWorld(props: Props) {
       });
     return () => {
       cancelled = true;
+      if (instance && scene.current === instance)
+        cameraState.current = {
+          view,
+          scope: cameraScope,
+          state: instance.getCameraState(),
+        };
       instance?.dispose();
       if (scene.current === instance) scene.current = null;
     };
-  }, [view, stations, attempt]);
+  }, [view, stations, attempt, cameraScope]);
   useEffect(() => scene.current?.setActive(active), [active]);
+  useEffect(() => scene.current?.setGenreFilter(genreFilter), [genreFilter]);
   useEffect(() => {
     scene.current?.select(selectedId);
     if (selectedId) {
       setFocusedId(selectedId);
       scene.current?.focus(selectedId);
     }
-  }, [selectedId, status]);
+  }, [selectedId]);
 
   return (
     <section
@@ -132,7 +192,7 @@ export default function StationWorld(props: Props) {
           </h3>
           <p>
             <span>{tr("拖动旋转 · 滚轮或双指缩放")}</span>
-            <span>{tr("点选光点收听")}</span>
+            <span>{tr("点选光点收听，聚合节点可展开探索")}</span>
           </p>
         </div>
         <button
@@ -189,9 +249,17 @@ export default function StationWorld(props: Props) {
             </div>
           </div>
         )}
-        {status === "ready" && view === "globe" && locatedCount === 0 && (
-          <div className="station-world__location-note">
-            {tr("本页电台未提供位置信息，可在星云或列表中收听。")}
+        {status === "ready" &&
+          view === "globe" &&
+          stations.length > 0 &&
+          !stations.some((station) => stationLocation(station)) && (
+            <div className="station-world__location-note">
+              {tr("这些电台未提供位置信息，可在星云或列表中收听。")}
+            </div>
+          )}
+        {status === "ready" && visibility && visibleStations.length === 0 && (
+          <div className="station-world__location-note" role="status">
+            {tr("当前视野没有节点，试试旋转或重置视角")}
           </div>
         )}
         {status === "ready" && (
@@ -223,14 +291,34 @@ export default function StationWorld(props: Props) {
         )}
       </div>
       {view === "nebula" && (
-        <div className="station-world__legend" aria-label={tr("流派分组")}>
+        <div
+          className="station-world__legend"
+          aria-label={tr("流派分组")}
+          title={tr("当前视野的光点数量，包含聚合点")}
+        >
+          <button
+            aria-pressed={genreFilter === null}
+            onClick={() => onGenreFilter(null)}
+          >
+            {tr("全部")}{" "}
+            <span>{tr("{{v0}} 点", { v0: visibleStations.length })}</span>
+          </button>
           {genreGroups.map(
             (group, index) =>
-              presentGenres.has(index) && (
-                <span key={group.name}>
+              visibleStations.some(
+                (station) => genreIndex(station) === index,
+              ) && (
+                <button
+                  key={group.name}
+                  aria-pressed={genreFilter === index}
+                  onClick={() => onGenreFilter(index)}
+                >
                   <i style={{ background: group.color }} />
-                  {tr(group.name)}
-                </span>
+                  {tr(group.name)}{" "}
+                  <span>
+                    {tr("{{v0}} 点", { v0: visibleGenreCounts[index] })}
+                  </span>
+                </button>
               ),
           )}
         </div>
@@ -238,7 +326,7 @@ export default function StationWorld(props: Props) {
       <div className="station-world__footer">
         <div className="station-world__catalog">
           <label htmlFor="world-station-select">
-            {tr("本页 {{v0}} 个电台", { v0: stations.length })}
+            {tr("当前视野 {{v0}} 个节点", { v0: visibleStations.length })}
           </label>
           <select
             id="world-station-select"
@@ -249,9 +337,12 @@ export default function StationWorld(props: Props) {
               scene.current?.focus(event.target.value);
             }}
           >
-            {stations.map((station) => (
+            {visibleStations.map((station) => (
               <option key={station.id} value={station.id}>
                 {station.name}
+                {station.cluster
+                  ? ` · ${tr("聚合")} · ${station.cluster.count ?? tr("数量未知")}`
+                  : ""}
               </option>
             ))}
           </select>
@@ -262,8 +353,8 @@ export default function StationWorld(props: Props) {
                   ? tr("按国家近似定位")
                   : tr("电台提供的坐标")
                 : tr("未提供位置")}
-              {locatedCount < stations.length &&
-                ` · ${tr("{{v0}} 个电台无位置", { v0: stations.length - locatedCount })}`}
+              {locatedCount < visibleStations.length &&
+                ` · ${tr("{{v0}} 个电台无位置", { v0: visibleStations.length - locatedCount })}`}
             </span>
           )}
         </div>
@@ -272,33 +363,50 @@ export default function StationWorld(props: Props) {
             <span>
               {focused.country || focused.source_name || stationGenre(focused)}
             </span>
-            <button
-              className="station-world__play"
-              onClick={() => onChoose(focused)}
-            >
-              <Play size={15} fill="currentColor" />
-              {tr("收听")}
-            </button>
-            <button
-              className="station-world__action"
-              onClick={() => onChooseProxy(focused)}
-              aria-label={tr("本次经服务器收听 {{v0}}", { v0: focused.name })}
-              title={tr("本次经服务器收听 {{v0}}", { v0: focused.name })}
-            >
-              <Cable size={17} />
-            </button>
-            <button
-              className={`station-world__action ${savedIds.has(focused.id) ? "is-saved" : ""}`}
-              onClick={() => onSave(focused)}
-              disabled={saving}
-              aria-label={`${savedIds.has(focused.id) ? tr("取消收藏") : tr("收藏")} ${focused.name}`}
-              aria-pressed={savedIds.has(focused.id)}
-            >
-              <Heart
-                size={17}
-                fill={savedIds.has(focused.id) ? "currentColor" : "none"}
-              />
-            </button>
+            {focused.cluster ? (
+              <button
+                className="station-world__play"
+                onClick={() => {
+                  scene.current?.focus(focused.id);
+                  onChoose(focused);
+                }}
+              >
+                <Search size={15} />
+                {tr("探索")}
+              </button>
+            ) : (
+              <>
+                <button
+                  className="station-world__play"
+                  onClick={() => onChoose(focused)}
+                >
+                  <Play size={15} fill="currentColor" />
+                  {tr("收听")}
+                </button>
+                <button
+                  className="station-world__action"
+                  onClick={() => onChooseProxy(focused)}
+                  aria-label={tr("本次经服务器收听 {{v0}}", {
+                    v0: focused.name,
+                  })}
+                  title={tr("本次经服务器收听 {{v0}}", { v0: focused.name })}
+                >
+                  <Cable size={17} />
+                </button>
+                <button
+                  className={`station-world__action ${savedIds.has(focused.id) ? "is-saved" : ""}`}
+                  onClick={() => onSave(focused)}
+                  disabled={saving}
+                  aria-label={`${savedIds.has(focused.id) ? tr("取消收藏") : tr("收藏")} ${focused.name}`}
+                  aria-pressed={savedIds.has(focused.id)}
+                >
+                  <Heart
+                    size={17}
+                    fill={savedIds.has(focused.id) ? "currentColor" : "none"}
+                  />
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>

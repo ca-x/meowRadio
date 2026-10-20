@@ -41,6 +41,13 @@ const stations: Station[] = [
   },
 ];
 const makeScene = () => ({
+  setGenreFilter: vi.fn(),
+  getCameraState: vi.fn(() => ({
+    position: [1, 2, 3] as [number, number, number],
+    target: [0, 0, 0] as [number, number, number],
+    fitFactor: 1,
+  })),
+  restoreCameraState: vi.fn(),
   focus: vi.fn(),
   select: vi.fn(),
   reset: vi.fn(),
@@ -61,11 +68,27 @@ function props() {
     onChooseProxy: vi.fn(),
     onSave: vi.fn(),
     onList: vi.fn(),
+    genreCounts: [1, 0, 0, 0, 0, 1, 0, 0],
+    genreFilter: null,
+    onGenreFilter: vi.fn(),
   };
 }
 beforeEach(async () => {
   scene = makeScene();
-  vi.mocked(createStationScene).mockReset().mockReturnValue(scene);
+  vi.mocked(createStationScene)
+    .mockReset()
+    .mockImplementation(
+      (_host, _view, items, _pick, _hover, _lost, visible) => {
+        visible?.({
+          ids: items.map((station) => station.id),
+          countries: ["FR"],
+          genreCounts: [1, 0, 0, 0, 0, 1, 0, 0],
+          cameraKey: "initial",
+          distance: 4.8,
+        });
+        return scene;
+      },
+    );
   await i18n.changeLanguage("zh");
 });
 afterEach(async () => {
@@ -166,4 +189,179 @@ describe("3D station controls", () => {
     ).toBeTruthy();
     expect(createStationScene).toHaveBeenCalledOnce();
   });
+});
+
+it("shows visible point counts and makes the legend filterable", async () => {
+  const actions = props();
+  render(<StationWorld {...actions} view="nebula" />);
+  await ready();
+  fireEvent.click(screen.getByRole("button", { name: "爵士 1 点" }));
+  expect(actions.onGenreFilter).toHaveBeenCalledWith(0);
+  expect(screen.queryByRole("button", { name: /摇滚/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "全部 2 点" }));
+  expect(actions.onGenreFilter).toHaveBeenCalledWith(null);
+});
+
+it("limits selector and counts to settled viewport visibility without autoplay", async () => {
+  const actions = { ...props(), onVisibility: vi.fn() };
+  render(<StationWorld {...actions} view="nebula" />);
+  await ready();
+  const visible = {
+    ids: ["a"],
+    countries: ["FR"],
+    genreCounts: [1, 0, 0, 0, 0, 0, 0, 0],
+    cameraKey: "moved",
+    distance: 3,
+  };
+  act(() => vi.mocked(createStationScene).mock.calls[0][6]?.(visible));
+  expect(screen.getAllByRole("option")).toHaveLength(1);
+  expect(screen.queryByRole("option", { name: "Personal Ambient" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /氛围/ })).toBeNull();
+  expect(actions.onVisibility).toHaveBeenLastCalledWith(visible);
+  expect(actions.onChoose).not.toHaveBeenCalled();
+});
+
+it("updates genre indices without recreating the scene and restores camera after detail updates", async () => {
+  const actions = props();
+  const { rerender } = render(<StationWorld {...actions} selectedId="a" />);
+  await ready();
+  rerender(<StationWorld {...actions} selectedId="a" genreFilter={0} />);
+  expect(scene.setGenreFilter).toHaveBeenLastCalledWith(0);
+  expect(createStationScene).toHaveBeenCalledTimes(1);
+  scene.focus.mockClear();
+  rerender(
+    <StationWorld {...actions} selectedId="a" stations={[...stations]} />,
+  );
+  await waitFor(() => expect(createStationScene).toHaveBeenCalledTimes(2));
+  expect(scene.restoreCameraState).toHaveBeenCalledWith(scene.getCameraState());
+  expect(scene.focus).not.toHaveBeenCalled();
+});
+
+it("shows aggregates as exploration actions without playback, relay or favorite controls", async () => {
+  const cluster: Station = {
+    ...stations[0],
+    id: "country:FR",
+    url: "",
+    cluster: { kind: "country", key: "FR", count: null },
+  };
+  const actions = { ...props(), stations: [cluster] };
+  render(<StationWorld {...actions} />);
+  await ready();
+  expect(screen.getByRole("option").textContent).toContain("数量未知");
+  expect(screen.queryByRole("button", { name: "收听" })).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: /收藏|本次经服务器/ }),
+  ).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "探索" }));
+  expect(actions.onChoose).toHaveBeenCalledWith(cluster);
+  expect(actions.onChooseProxy).not.toHaveBeenCalled();
+  expect(actions.onSave).not.toHaveBeenCalled();
+});
+
+it("counts unknown-count genre aggregates as visible points", async () => {
+  const cluster: Station = {
+    ...stations[0],
+    id: "genre:jazz",
+    url: "",
+    cluster: { kind: "genre", key: "jazz", count: null },
+  };
+  render(<StationWorld {...props()} stations={[cluster]} view="nebula" />);
+  await ready();
+  act(() =>
+    vi.mocked(createStationScene).mock.calls[0][6]?.({
+      ids: [cluster.id],
+      countries: [],
+      genreCounts: Array(8).fill(0),
+      distance: 6.2,
+      cameraKey: "initial",
+    }),
+  );
+  expect(screen.getByRole("button", { name: "爵士 1 点" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "全部 1 点" })).toBeTruthy();
+});
+
+it("restores camera only for detail data within the same search scope", async () => {
+  const actions = props();
+  const { rerender } = render(
+    <StationWorld {...actions} cameraScope="search-1" />,
+  );
+  await ready();
+  rerender(
+    <StationWorld
+      {...actions}
+      stations={[...stations]}
+      cameraScope="search-1"
+    />,
+  );
+  await waitFor(() => expect(createStationScene).toHaveBeenCalledTimes(2));
+  expect(scene.restoreCameraState).toHaveBeenCalledOnce();
+  scene.restoreCameraState.mockClear();
+  rerender(
+    <StationWorld
+      {...actions}
+      stations={[...stations]}
+      cameraScope="search-2"
+    />,
+  );
+  await waitFor(() => expect(createStationScene).toHaveBeenCalledTimes(3));
+  expect(scene.restoreCameraState).not.toHaveBeenCalled();
+});
+
+it("suggests rotation or reset when the settled viewport is empty", async () => {
+  render(<StationWorld {...props()} />);
+  await ready();
+  act(() =>
+    vi.mocked(createStationScene).mock.calls[0][6]?.({
+      ids: [],
+      countries: [],
+      genreCounts: Array(8).fill(0),
+      distance: 4.8,
+      cameraKey: "empty",
+    }),
+  );
+  expect(screen.getByRole("status").textContent).toContain(
+    "当前视野没有节点，试试旋转或重置视角",
+  );
+  expect(screen.queryAllByRole("option")).toHaveLength(0);
+});
+
+it("counts overlapping directory tag aggregates as points instead of summing their station totals", async () => {
+  const clusters: Station[] = [
+    {
+      ...stations[0],
+      id: "genre:jazz",
+      tags: "jazz",
+      url: "",
+      cluster: { kind: "genre", key: "jazz", count: 120 },
+    },
+    {
+      ...stations[0],
+      id: "genre:smoothjazz",
+      tags: "jazz,smoothjazz",
+      url: "",
+      cluster: { kind: "genre", key: "smoothjazz", count: 80 },
+    },
+  ];
+  render(<StationWorld {...props()} stations={clusters} view="nebula" />);
+  await ready();
+  act(() =>
+    vi.mocked(createStationScene).mock.calls[0][6]?.({
+      ids: clusters.map((station) => station.id),
+      countries: [],
+      genreCounts: [-1, 0, 0, 0, 0, 0, 0, 0],
+      distance: 6.2,
+      cameraKey: "overlap",
+    }),
+  );
+  expect(screen.getByRole("button", { name: "爵士 2 点" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "全部 2 点" })).toBeTruthy();
+  expect(
+    screen.getAllByRole("option").map((option) => option.textContent),
+  ).toEqual(
+    expect.arrayContaining([
+      expect.stringContaining("120"),
+      expect.stringContaining("80"),
+    ]),
+  );
+  expect(screen.queryByRole("button", { name: /200/ })).toBeNull();
 });

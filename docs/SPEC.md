@@ -81,3 +81,16 @@ User requested RoamDial-inspired interactions and the same browser rendering tec
 - Ship browser-local map data and third-party notices, translated controls, 375px responsive layout, WebGL failure/context-loss recovery and a usable list fallback.
 
 Verification: frontend spatial/lifecycle/navigation tests, existing frontend and Rust suites, production build, formatting/Clippy, dependency audits and supported/unsupported WebGL browser checks.
+
+
+## v0.4.1 viewport exploration and list page sizes
+
+User corrected the original page-bound 3D design: list views must remain paged, while globe/nebula explore the complete directory with filters retained. Final clarification asks to render and filter only viewport-visible points and countries for performance.
+
+- List page sizes 24/100/500/1000 persist independently; changing size resets source page indices. Private ownership and query validation remain enforced.
+- 3D overview represents global countries and actual directory tags through nonplayable clusters, including a drillable unknown remainder for untagged/rare tags. There are no 3D previous/next-page controls.
+- Visible viewport scopes drive cached/coalesced detail requests. Zooming and explicit cluster activation increase detail; partial results retain aggregate remainders. Never wait for a full remote dump, or claim partial detail is a complete station list.
+- Visible geometry indices are culled against the camera and globe horizon before GPU submission. React visibility updates occur after camera settles, with a camera fingerprint preventing data-driven query loops. Camera survives detail updates; explicit main-search/filter scopes can recenter.
+- Country options, selector nodes and genre buttons follow settled visibility. Genre badges explicitly count points, including aggregates; overlapping upstream tag totals are not added as unique station totals.
+- Clusters offer Explore only and cannot enter the audio player, relay or favorites. Actual station selection preserves existing audio/permissions. Scope/owner changes cannot reuse private query placeholders.
+- View queries validate bounded visible scopes and detail levels; cached exploration snapshots have a 100,000-node/128-key budget without truncating responses. Unknown counts remain unknown; small territories use bundled 50m country centroids.

@@ -24,7 +24,6 @@ use std::{
 use url::Url;
 
 pub const MAX_UPLOAD_BYTES: usize = 5 * 1024 * 1024;
-const PAGE_SIZE: usize = 24;
 
 #[derive(Debug)]
 pub struct ImportedStation {
@@ -374,6 +373,7 @@ fn station(row: &StoredStation) -> Result<Station> {
     let categories: Vec<Vec<String>> = serde_json::from_str(&row.categories_json)
         .map_err(|_| AppError(StatusCode::INTERNAL_SERVER_ERROR, "电台数据读取失败"))?;
     Ok(Station {
+        cluster: None,
         id: row.id.clone(),
         name: row.name.clone(),
         url: format!("/api/personal-stations/{}/stream", row.id),
@@ -455,6 +455,10 @@ pub fn routes() -> Router<AppState> {
         .route("/personal-sources/{id}", delete(delete_source))
         .route("/personal-sources/{id}/refresh", post(refresh))
         .route("/personal-stations", get(page))
+        .route(
+            "/personal-stations/explore",
+            get(explore).layer(tower_http::compression::CompressionLayer::new()),
+        )
         .route("/personal-stations/{id}", delete(delete_station))
 }
 async fn list(State(s): State<AppState>, headers: HeaderMap) -> Result<Json<Vec<Source>>> {
@@ -731,6 +735,8 @@ async fn replace_snapshot(
 
 #[derive(Default, Deserialize)]
 struct PageQuery {
+    #[serde(default = "crate::catalog::default_page_size")]
+    page_size: u32,
     #[serde(default)]
     q: String,
     #[serde(default)]
@@ -750,9 +756,28 @@ struct Page {
 async fn page(
     State(s): State<AppState>,
     headers: HeaderMap,
-    Query(mut q): Query<PageQuery>,
+    Query(q): Query<PageQuery>,
+) -> Result<Json<Page>> {
+    browse(s, headers, q, false).await
+}
+async fn explore(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    Query(q): Query<PageQuery>,
+) -> Result<Json<Page>> {
+    browse(s, headers, q, true).await
+}
+async fn browse(
+    s: AppState,
+    headers: HeaderMap,
+    mut q: PageQuery,
+    all: bool,
 ) -> Result<Json<Page>> {
     let user = auth::user(&s, &headers).await?;
+    if ![24, 100, 500, 1000].contains(&q.page_size) {
+        return Err(AppError::bad("不支持的分页大小"));
+    }
+    let page_size = q.page_size as usize;
     q.source_id = q.source_id.filter(|id| !id.is_empty());
     if q.q.chars().count() > 250 || q.category.len() > 3000 {
         return Err(AppError::bad("搜索条件过长"));
@@ -779,8 +804,8 @@ async fn page(
     };
     let mut categories = Vec::new();
     let mut seen_categories = HashSet::new();
-    let mut selected = Vec::with_capacity(PAGE_SIZE);
-    let mut last_page = Vec::with_capacity(PAGE_SIZE);
+    let mut selected = Vec::with_capacity(page_size);
+    let mut last_page = Vec::with_capacity(page_size);
     let mut total = 0usize;
     while let Some(row) = rows.try_next().await? {
         let paths: Vec<Vec<String>> = serde_json::from_str(&row.categories_json)
@@ -803,23 +828,31 @@ async fn page(
                 .to_lowercase()
                 .contains(&needle)
         {
-            if total.is_multiple_of(PAGE_SIZE) {
+            if total.is_multiple_of(page_size) {
                 last_page.clear();
             }
             last_page.push(item.clone());
-            if total / PAGE_SIZE == q.page {
+            if all || total / page_size == q.page {
                 selected.push(item);
             }
             total += 1;
         }
     }
-    let page = q.page.min(total.saturating_sub(1) / PAGE_SIZE);
-    let items = if page == q.page { selected } else { last_page };
+    let page = if all {
+        0
+    } else {
+        q.page.min(total.saturating_sub(1) / page_size)
+    };
+    let items = if all || page == q.page {
+        selected
+    } else {
+        last_page
+    };
     Ok(Json(Page {
         items,
         total,
         page,
-        page_size: PAGE_SIZE,
+        page_size: if all { total } else { page_size },
         categories,
     }))
 }

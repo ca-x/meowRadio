@@ -19,7 +19,16 @@ use std::{
 use tokio::sync::{Mutex, Semaphore};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct Cluster {
+    pub kind: String,
+    pub key: String,
+    pub count: Option<u32>,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Station {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cluster: Option<Cluster>,
     pub id: String,
     pub name: String,
     pub url: String,
@@ -43,6 +52,7 @@ pub struct Station {
 impl From<ApiStation> for Station {
     fn from(s: ApiStation) -> Self {
         Self {
+            cluster: None,
             id: s.stationuuid,
             name: s.name,
             url: if s.url_resolved.is_empty() {
@@ -66,13 +76,15 @@ impl From<ApiStation> for Station {
 }
 #[derive(Default, Clone, Deserialize)]
 pub struct Search {
+    #[serde(default = "default_page_size", deserialize_with = "query_number")]
+    pub limit: u32,
     #[serde(default)]
     pub q: String,
     #[serde(default)]
     pub tag: String,
     #[serde(default)]
     pub country: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "query_number")]
     pub offset: u32,
     #[serde(default)]
     pub language: String,
@@ -80,8 +92,49 @@ pub struct Search {
     pub sort: String,
     #[serde(default)]
     pub codec: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "query_number")]
     pub bitrate_min: u16,
+}
+// Flattened query fields arrive as strings in serde_urlencoded; also accept
+// ordinary numeric JSON values used by internal callers and saved fixtures.
+fn query_number<'de, D, T>(deserializer: D) -> std::result::Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de> + std::str::FromStr,
+    T::Err: std::fmt::Display,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Number<T> {
+        Value(T),
+        Text(String),
+    }
+    match Number::<T>::deserialize(deserializer)? {
+        Number::Value(value) => Ok(value),
+        Number::Text(text) => text.parse().map_err(serde::de::Error::custom),
+    }
+}
+pub(crate) fn default_page_size() -> u32 {
+    24
+}
+impl Search {
+    pub(crate) fn validate(&self) -> Result<()> {
+        if self.q.len() > 100
+            || self.tag.len() > 60
+            || self.country.len() > 2
+            || self.offset > 10000
+            || self.language.len() > 80
+            || self.bitrate_min > 320
+            || ![24, 100, 500, 1000].contains(&self.limit)
+            || !["", "MP3", "AAC", "AAC+", "OGG", "FLAC"].contains(&self.codec.as_str())
+        {
+            return Err(AppError::bad("搜索条件过长或页码超出范围"));
+        }
+        if !["", "popular", "votes", "name"].contains(&self.sort.as_str()) {
+            return Err(AppError::bad("不支持的排序方式"));
+        }
+        Ok(())
+    }
 }
 type DirectoryCache = Option<(Instant, Result<Directory>)>;
 
@@ -94,6 +147,8 @@ pub struct Catalog {
     pub(crate) slots: Arc<Semaphore>,
     pub(crate) directory_cache: Arc<Mutex<DirectoryCache>>,
     cache: Arc<Mutex<StationCache>>,
+    pub(crate) exploration_cache: Arc<Mutex<crate::exploration::Cache>>,
+    pub(crate) exploration_refresh: Arc<Mutex<HashMap<String, Arc<Mutex<()>>>>>,
 }
 impl Catalog {
     pub fn new(config: &Config) -> anyhow::Result<Self> {
@@ -109,15 +164,35 @@ impl Catalog {
             client: builder.build()?,
             slots: Arc::new(Semaphore::new(8)),
             cache: Default::default(),
+            exploration_cache: Default::default(),
+            exploration_refresh: Default::default(),
             directory_cache: Default::default(),
         })
     }
-    async fn fetch(&self, path: String, params: HashMap<String, String>) -> Result<Vec<Station>> {
+    pub(crate) async fn fetch(
+        &self,
+        path: String,
+        params: HashMap<String, String>,
+    ) -> Result<Vec<Station>> {
         let key = format!(
             "{path}{}",
             serde_json::to_string(&params.iter().collect::<std::collections::BTreeMap<_, _>>())
                 .unwrap()
         );
+        if let Some((at, value)) = self.cache.lock().await.get(&key)
+            && at.elapsed() < Duration::from_secs(120)
+        {
+            return Ok(value.clone());
+        }
+        // Coalesce identical transport queries across viewport detail levels and list views.
+        let gate = {
+            let mut gates = self.exploration_refresh.lock().await;
+            if gates.len() >= 256 {
+                gates.retain(|_, gate| Arc::strong_count(gate) > 1);
+            }
+            gates.entry(format!("stations:{key}")).or_default().clone()
+        };
+        let _query = gate.lock().await;
         if let Some((at, value)) = self.cache.lock().await.get(&key)
             && at.elapsed() < Duration::from_secs(120)
         {
@@ -198,16 +273,10 @@ impl Catalog {
             .ok_or(AppError(StatusCode::NOT_FOUND, "电台不存在"))
     }
     pub async fn search(&self, q: Search) -> Result<Vec<Station>> {
-        if q.q.len() > 100
-            || q.tag.len() > 60
-            || q.country.len() > 2
-            || q.offset > 10000
-            || q.language.len() > 80
-            || q.bitrate_min > 320
-            || !["", "MP3", "AAC", "AAC+", "OGG", "FLAC"].contains(&q.codec.as_str())
-        {
-            return Err(AppError::bad("搜索条件过长或页码超出范围"));
-        }
+        q.validate()?;
+        self.search_page(q).await
+    }
+    pub(crate) async fn search_page(&self, q: Search) -> Result<Vec<Station>> {
         let order = match q.sort.as_str() {
             "" | "popular" => StationOrder::Clickcount,
             "votes" => StationOrder::Votes,
@@ -215,7 +284,7 @@ impl Catalog {
             _ => return Err(AppError::bad("不支持的排序方式")),
         };
         let mut params = HashMap::from([
-            ("limit".into(), "24".into()),
+            ("limit".into(), q.limit.to_string()),
             ("offset".into(), q.offset.to_string()),
             ("hidebroken".into(), "true".into()),
             ("order".into(), order.to_string()),
