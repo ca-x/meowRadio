@@ -16,7 +16,14 @@ import { receiverThemes } from "./receiverThemes";
 import TransientCopy from "./TransientCopy";
 import i18n, { tr, setLanguage } from "./i18n";
 import { useTranslation } from "react-i18next";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
@@ -44,6 +51,8 @@ import {
   Cable,
   Disc3,
   ListMusic,
+  LayoutGrid,
+  Sparkles,
 } from "lucide-react";
 import { api, rawApi, ApiError } from "./api";
 import type {
@@ -62,6 +71,9 @@ import { readBrowseState, saveBrowseState } from "./browseState";
 import StationSearch from "./StationSearch";
 import StationFilters, { DEFAULT_FILTERS, filterCount } from "./StationFilters";
 import type { Filters } from "./StationFilters";
+import type { WorldView } from "./StationWorld";
+import "./station-world.css";
+const StationWorld = lazy(() => import("./StationWorld"));
 function Modal({
   open,
   onOpenChange,
@@ -144,6 +156,21 @@ export default function App({ active = true }: { active?: boolean }) {
     }
   }, [active]);
   const [tab, setTab] = useState("discover");
+  const [view, setView] = useState<"list" | WorldView>(() => {
+    try {
+      const saved = localStorage.getItem("meow-directory-view");
+      return saved === "globe" || saved === "nebula" ? saved : "list";
+    } catch {
+      return "list";
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("meow-directory-view", view);
+    } catch {
+      /* no storage */
+    }
+  }, [view]);
   const [savedBrowse] = useState(readBrowseState);
   const [search, setSearch] = useState(savedBrowse.query);
   const [query, setQuery] = useState(savedBrowse.query);
@@ -813,6 +840,36 @@ export default function App({ active = true }: { active?: boolean }) {
               "支持电台名称、FM 或频率关键词；也可使用筛选按钮按国家和语言浏览。",
             )}
           </p>
+          <div
+            className="directory-view-switch"
+            role="group"
+            aria-label={tr("电台视图")}
+          >
+            <button
+              type="button"
+              aria-pressed={view === "list"}
+              onClick={() => setView("list")}
+            >
+              <LayoutGrid size={16} />
+              {tr("列表")}
+            </button>
+            <button
+              type="button"
+              aria-pressed={view === "globe"}
+              onClick={() => setView("globe")}
+            >
+              <Globe2 size={16} />
+              {tr("地球")}
+            </button>
+            <button
+              type="button"
+              aria-pressed={view === "nebula"}
+              onClick={() => setView("nebula")}
+            >
+              <Sparkles size={16} />
+              {tr("星云")}
+            </button>
+          </div>
           <p className="search-progress" role="status" aria-live="polite">
             {currentQuery.isFetching
               ? tab === "discover" && stations.isPlaceholderData
@@ -966,6 +1023,27 @@ export default function App({ active = true }: { active?: boolean }) {
                 )}
               </div>
             </div>
+          ) : view !== "list" ? (
+            <Suspense
+              fallback={
+                <div className="empty-state" role="status">
+                  {tr("正在展开声音地图…")}
+                </div>
+              }
+            >
+              <StationWorld
+                view={view}
+                active={active}
+                stations={visible}
+                selectedId={selected?.id}
+                savedIds={savedIds}
+                onChoose={choose}
+                onChooseProxy={chooseProxy}
+                onSave={toggleSave}
+                saving={save.isPending}
+                onList={() => setView("list")}
+              />
+            </Suspense>
           ) : (
             <div className="station-grid" aria-busy={currentQuery.isFetching}>
               {visible.map((s, i) => (

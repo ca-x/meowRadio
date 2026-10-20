@@ -1,0 +1,339 @@
+.directory-view-switch {
+  display: flex;
+  gap: 4px;
+  margin-top: 18px;
+  width: fit-content;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel, transparent);
+}
+.directory-view-switch button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.directory-view-switch button[aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+}
+.directory-view-switch button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.station-world {
+  overflow: hidden;
+  border: 1px solid #3b5154;
+  border-radius: 10px;
+  background: #0a171c;
+  color: #ecf0e9;
+  isolation: isolate;
+}
+.station-world__heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
+  padding: 26px 28px 8px;
+}
+.station-world__eyebrow {
+  font:
+    10px "Space Mono",
+    monospace;
+  letter-spacing: 0.16em;
+  color: #d6b284;
+}
+.station-world__heading h3 {
+  font-size: 22px;
+  line-height: 1.3;
+  margin: 7px 0;
+}
+.station-world__heading p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 12px;
+  margin: 0;
+  color: #a9b8bb;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.station-world__reset {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #57676b;
+  border-radius: 5px;
+  background: #15252e;
+  color: #e9efea;
+  padding: 9px 11px;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.station-world__viewport {
+  position: relative;
+  height: clamp(360px, 47vw, 510px);
+}
+.station-world__canvas {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+.station-world__canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+.station-world__canvas canvas:active {
+  cursor: grabbing;
+}
+.station-world__canvas:focus-visible {
+  outline: 2px solid #d6b284;
+  outline-offset: -5px;
+}
+.station-world__reticle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  transform: translate(-50%, -50%);
+  border: 1px solid #e1e9db44;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.station-world__zoom {
+  position: absolute;
+  bottom: 20px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.station-world__zoom button,
+.station-world__message button {
+  display: grid;
+  place-items: center;
+  min-width: 38px;
+  min-height: 38px;
+  border: 1px solid #57676b;
+  border-radius: 5px;
+  background: #15252e;
+  color: #e9efea;
+  cursor: pointer;
+}
+.station-world__message {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  gap: 12px;
+  text-align: center;
+  background: #0a171c;
+  color: #d9e1db;
+}
+.station-world__message p {
+  max-width: 350px;
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 0;
+}
+.station-world__message > div {
+  display: flex;
+  gap: 10px;
+}
+.station-world__message button {
+  padding: 0 15px;
+}
+.station-world__location-note {
+  position: absolute;
+  bottom: 16px;
+  left: 20px;
+  right: 80px;
+  color: #bfcbc7;
+  font-size: 12px;
+  line-height: 1.6;
+  pointer-events: none;
+}
+.station-world__hover {
+  position: absolute;
+  left: 24px;
+  bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+  max-width: calc(100% - 110px);
+  text-shadow: 0 1px 4px #000;
+}
+.station-world__hover strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.station-world__hover span {
+  font-size: 12px;
+  color: #bfd1ca;
+}
+.station-world__legend {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  padding: 8px 24px 22px;
+  color: #becdc8;
+  font-size: 11px;
+}
+.station-world__legend > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.station-world__legend i {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.station-world__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 98px;
+  padding: 18px 28px;
+  border-top: 1px solid #ffffff20;
+}
+.station-world__catalog {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  max-width: 380px;
+}
+.station-world__catalog label,
+.station-world__precision {
+  font-size: 10px;
+  color: #a9b8bb;
+}
+.station-world__catalog select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #57676b;
+  border-radius: 4px;
+  padding: 5px 28px 5px 10px;
+  background: #15252e;
+  color: #ecf0e9;
+  font: inherit;
+  font-size: 13px;
+}
+.station-world__selection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.station-world__selection > span {
+  font-size: 12px;
+  color: #bfcbc7;
+  margin-right: 6px;
+  overflow-wrap: anywhere;
+}
+.station-world__play,
+.station-world__action {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+.station-world__play {
+  padding: 0 14px;
+  background: #e5bc84;
+  border: 1px solid #e5bc84;
+  color: #15212a;
+}
+.station-world__action {
+  width: 38px;
+  background: #ffffff0e;
+  border: 1px solid #ffffff38;
+  color: #e8eee7;
+}
+.station-world__action.is-saved {
+  color: #e5bc84;
+}
+.station-world button:focus-visible,
+.station-world select:focus-visible {
+  outline: 2px solid #e5bc84;
+  outline-offset: 3px;
+}
+.station-world button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+@media (hover: hover) {
+  .station-world button:not(:disabled):hover {
+    filter: brightness(1.15);
+  }
+}
+@media (max-width: 700px) {
+  .station-world__heading {
+    padding: 20px 18px 8px;
+  }
+  .station-world__heading h3 {
+    font-size: 18px;
+  }
+  .station-world__heading p {
+    max-width: 235px;
+  }
+  .station-world__reset {
+    padding: 10px;
+  }
+  .station-world__reset span {
+    display: none;
+  }
+  .station-world__viewport {
+    height: 360px;
+  }
+  .station-world__footer {
+    padding: 16px 18px;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .station-world__catalog {
+    max-width: none;
+  }
+  .station-world__selection > span {
+    flex-basis: 100%;
+    margin-right: 0;
+  }
+  .station-world__legend {
+    gap: 10px 15px;
+  }
+  .directory-view-switch {
+    width: 100%;
+  }
+  .directory-view-switch button {
+    flex: 1;
+  }
+}

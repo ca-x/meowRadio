@@ -13,6 +13,7 @@
 - **多用户**：独立 `/login` 页面完成用户名/密码登录与注册，独立收藏；Argon2id 密码、HttpOnly 会话 Cookie、过期与退出撤销。
 - **首次初始化**：环境变量创建首个管理员，或首次访问时使用设置向导。初始化只运行一次，不会因重启重置密码。
 - **世界电台**：基于 `radiobrowser` crate 和 Radio Browser API，支持名称、类型、国家筛选及分页。首页只保留筛选入口，点击后可按国家、语言、节目类型、排序及音质组合浏览，无需关键词。中文输入法选词完成后再搜索，支持 Enter 立即搜索和空结果恢复。`FM 104.2` / 全角频率写法会转换为电台名称中的频率关键词。
+- **三种浏览视图**：列表、三维地球、流派星云随时切换，保留当前播放与筛选；地球按位置找台，星云按流派聚类，支持拖动旋转、滚轮及双指缩放、点选光点收听。
 - **收听**：播放、暂停、换台、音量；HLS 按需加载；HTTP/HTTPS/SOCKS5 出站代理和可选的服务端音频中转。断流后按 2/4/8/16/30/30 秒重试，恢复网络或回到前台时检查播放；手动暂停、定时关闭不会触发自动恢复。
 - **状态保留**：点击首页、切换语言/配色不会打断收听；关键词、筛选、页码和默认播放方式保存在当前浏览器，设置内显示版本。
 - **懒猫集成**：仅检测到 LazyCat WebShell 时启用原生控制栏适配；Android 同步播放状态、元数据及播放/暂停/换台，iOS 适配状态栏与安全区域。普通浏览器跳过 SDK 加载与宿主调用。
@@ -24,15 +25,15 @@
 
 ### PC 端
 
-| 弧光调谐 | 个人源管理 | 无效地址确认 |
+| 弧光调谐 | 地球视图 | 星云视图 |
 | --- | --- | --- |
-| ![PC 弧光调谐暗色](docs/screenshots/pc-arc.png) | ![PC 个人源管理](docs/screenshots/pc-sources.png) | ![PC 无效地址确认](docs/screenshots/pc-source-cleanup.png) |
+| ![PC 弧光调谐暗色](docs/screenshots/pc-arc.png) | ![PC 地球视图](docs/screenshots/pc-globe.png) | ![PC 星云视图](docs/screenshots/pc-nebula.png) |
 
 ### 移动端
 
-| 黑白刻度 | 个人源管理 | 无效地址确认 |
+| 黑白刻度 | 地球视图 | 星云视图 |
 | --- | --- | --- |
-| ![移动端黑白刻度](docs/screenshots/mobile-mono.png) | ![移动端个人源管理](docs/screenshots/mobile-sources.png) | ![移动端无效地址确认](docs/screenshots/mobile-source-cleanup.png) |
+| ![移动端黑白刻度](docs/screenshots/mobile-mono.png) | ![移动端地球视图](docs/screenshots/mobile-globe.png) | ![移动端星云视图](docs/screenshots/mobile-nebula.png) |
 
 ## Docker
 
@@ -72,6 +73,16 @@ MEOW_INIT_USERNAME=admin MEOW_INIT_PASSWORD="$RADIO_ADMIN_PASSWORD" ./meowradio
 ## 浏览与筛选
 
 在首页点击“筛选”打开面板。国家/地区、语言、节目类型和排序在面板中选择；编码和最低码率放在“音频格式与音质”折叠区。点击“应用筛选”更新列表，关闭面板会丢弃未应用的修改。入口仅显示已启用条件数量，首页不铺开筛选项。目录选项按需加载，括号中的数量是整个目录的收录量，并非组合筛选结果总数。
+
+## 地球与星云
+
+电台目录上方提供“列表 / 地球 / 星云”切换，偏好保存在当前浏览器；三种视图展示当前页相同的搜索、筛选或收藏结果，翻页可继续探索。视图与收音机外观独立，切换不重建音频实例。
+
+地球优先使用目录提供的经纬度；没有坐标时按国家近似定位，并在选台区注明。没有位置信息的电台不显示在地球上，仍可通过下拉选台、星云或列表收听。星云按爵士、古典、电子、摇滚、流行、氛围、新闻与谈话等标签聚类，个人源分类也可参与。
+
+拖动旋转，滚轮或双指缩放，点击电台光点开始收听；下方也可选择电台后点击收听、收藏或单次服务器中转。键盘聚焦场景后，方向键旋转，加减键缩放；按钮支持缩放与重置视角。
+
+三维视图使用与 [RoamDial](https://roamdial.com/) 相同的 Three.js r186 / WebGL 2 技术，需启用浏览器图形加速；不支持时可切回列表继续收听。地图数据与渲染资源随应用打包，渲染代码按需加载，离开页面或场景不可见时停止绘制；系统启用减少动态效果时关闭相机惯性。
 
 ## 收藏分页
 
@@ -199,8 +210,8 @@ cargo audit
 CI 检查格式、Clippy、前后端测试、依赖审计、嵌入式二进制及非 root Docker 启动。推送与 `Cargo.toml` 版本一致的 `v*` 标签触发 Release：
 
 ```sh
-git tag v0.3.0
-git push origin v0.3.0
+git tag v0.4.0
+git push origin v0.4.0
 ```
 
 所有验证通过后，分别构建 Linux amd64/arm64、macOS amd64/arm64、Windows amd64，上传压缩包和 SHA256SUMS，并发布 `ghcr.io/ca-x/meowradio:<tag>`。正式版本同时更新 `latest`；预发布不覆盖 `latest`。本项目 GHCR 镜像已验证允许匿名拉取。仅需仓库内置 `GITHUB_TOKEN` 的 contents/packages 写权限。

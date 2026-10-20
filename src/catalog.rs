@@ -30,6 +30,10 @@ pub struct Station {
     pub bitrate: u32,
     pub hls: bool,
     #[serde(default)]
+    pub geo_lat: Option<f64>,
+    #[serde(default)]
+    pub geo_long: Option<f64>,
+    #[serde(default)]
     pub personal: bool,
     #[serde(default)]
     pub source_id: Option<String>,
@@ -52,6 +56,8 @@ impl From<ApiStation> for Station {
             codec: s.codec,
             bitrate: s.bitrate,
             hls: s.hls == 1,
+            geo_lat: s.geo_lat,
+            geo_long: s.geo_long,
             personal: false,
             source_id: None,
             source_name: None,
@@ -317,4 +323,22 @@ pub async fn click(
         .send()
         .await;
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Station;
+
+    #[test]
+    fn saved_stations_without_coordinates_remain_readable() {
+        let station: Station = serde_json::from_value(serde_json::json!({
+            "id": "legacy", "name": "Legacy Radio", "url": "https://radio.example/live",
+            "country": "France", "countrycode": "FR", "tags": "jazz",
+            "codec": "MP3", "bitrate": 128, "hls": false
+        }))
+        .unwrap();
+        assert_eq!(station.geo_lat, None);
+        assert_eq!(station.geo_long, None);
+        assert!(!station.personal);
+    }
 }

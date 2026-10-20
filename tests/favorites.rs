@@ -88,6 +88,8 @@ fn station(index: usize) -> Station {
         codec: "MP3".into(),
         bitrate: 128,
         hls: false,
+        geo_lat: None,
+        geo_long: None,
         personal: false,
         source_id: None,
         source_name: None,

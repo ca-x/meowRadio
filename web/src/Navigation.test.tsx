@@ -28,6 +28,17 @@ vi.mock("./api", async (original) => ({
   ...(await original<object>()),
   api: vi.fn(),
 }));
+vi.mock("./StationScene", () => ({
+  createStationScene: vi.fn(() => ({
+    focus: vi.fn(),
+    select: vi.fn(),
+    reset: vi.fn(),
+    zoom: vi.fn(),
+    rotate: vi.fn(),
+    setActive: vi.fn(),
+    dispose: vi.fn(),
+  })),
+}));
 beforeEach(async () => {
   localStorage.clear();
   await i18n.changeLanguage("zh");
@@ -69,6 +80,45 @@ function mount() {
     </QueryClientProvider>,
   );
 }
+it("switches directory views without replacing audio, replaying or refetching stations", async () => {
+  mount();
+  fireEvent.click(
+    await screen.findByRole("button", { name: "收听 Example FM" }),
+  );
+  const audio = document.querySelector("audio")!;
+  fireEvent.playing(audio);
+  const plays = vi.mocked(HTMLMediaElement.prototype.play).mock.calls.length;
+  const requests = vi
+    .mocked(api)
+    .mock.calls.filter(([path]) => path.startsWith("/stations")).length;
+  fireEvent.click(screen.getByRole("button", { name: "地球" }));
+  await screen.findByRole("region", { name: "地球电台视图" });
+  fireEvent.click(screen.getByRole("button", { name: "星云" }));
+  await screen.findByRole("region", { name: "星云电台视图" });
+  fireEvent.click(screen.getByRole("button", { name: "列表" }));
+  await screen.findByRole("button", { name: "收听 Example FM" });
+  expect(document.querySelector("audio")).toBe(audio);
+  expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(plays);
+  expect(
+    vi.mocked(api).mock.calls.filter(([path]) => path.startsWith("/stations")),
+  ).toHaveLength(requests);
+});
+it("remembers the directory view across reloads without starting playback", async () => {
+  localStorage.setItem("meow-directory-view", "nebula");
+  const first = mount();
+  await screen.findByRole("region", { name: "星云电台视图" });
+  expect(
+    screen.getByRole("button", { name: "星云" }).getAttribute("aria-pressed"),
+  ).toBe("true");
+  fireEvent.click(screen.getByRole("button", { name: "地球" }));
+  await waitFor(() =>
+    expect(localStorage.getItem("meow-directory-view")).toBe("globe"),
+  );
+  first.unmount();
+  mount();
+  await screen.findByRole("region", { name: "地球电台视图" });
+  expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+});
 it("keeps the same playing audio, query and country when clicking home and changing appearance", async () => {
   localStorage.setItem(
     "meow-browse",

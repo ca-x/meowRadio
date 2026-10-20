@@ -1,4 +1,35 @@
 const uiEnglish: Record<string, string> = {
+  电台视图: "Station view",
+  列表: "List",
+  地球: "Globe",
+  星云: "Nebula",
+  地球电台视图: "Globe station view",
+  星云电台视图: "Nebula station view",
+  "转动地球，寻找一个频道": "Turn the globe. Find a station.",
+  "沿着声音，遇见电台": "Follow the sound. Find a station.",
+  "拖动旋转 · 滚轮或双指缩放": "Drag to orbit · Scroll or pinch to zoom",
+  点选光点收听: "Select a light to listen",
+  重置视角: "Reset view",
+  "三维电台场景，方向键旋转，加减键缩放":
+    "3D station scene. Arrow keys rotate; plus and minus zoom.",
+  "正在展开声音地图…": "Opening the sound map…",
+  "三维视图需要 WebGL 2": "3D views require WebGL 2",
+  "请启用浏览器图形加速，或切回列表继续收听。":
+    "Enable graphics acceleration in your browser, or return to the list to keep listening.",
+  切回列表: "Return to list",
+  "本页电台未提供位置信息，可在星云或列表中收听。":
+    "Stations on this page have no location. Listen in the nebula or list view.",
+  放大视图: "Zoom in",
+  缩小视图: "Zoom out",
+  流派分组: "Genre groups",
+  "本页 {{v0}} 个电台": "{{v0}} stations on this page",
+  选择电台: "Choose a station",
+  按国家近似定位: "Approximate country location",
+  电台提供的坐标: "Station-provided coordinates",
+  未提供位置: "Location unavailable",
+  "{{v0}} 个电台无位置": "{{v0}} without a location",
+  新闻与谈话: "Talk & news",
+  其他: "Other",
   "第 {{page}} / {{pages}} 页 · 共 {{total}} 个收藏":
     "Page {{page}} / {{pages}} · {{total}} favorites",
 

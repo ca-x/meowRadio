@@ -67,3 +67,17 @@ Owner-bound URL/file JSON sources with independent /sources management, format g
 Multiple URLs per station, category paths, legacy allowlisted header/reuse suffixes; HTTP(S) audio/HLS/FLV, HTML/JSON/JSONP resolution and RTMP(S)/RTSP(S)/MMS/MMST/MMSH ingress. Server FFmpeg normalizes output to MP3/128k. Public-network pinning and redirect validation extend to every media resource. No imported shell commands or third-party JavaScript execution. Docker bundles FFmpeg; native installs require it.
 
 Invalid import addresses and complete runtime validation failures appear in confirmation dialogs. Nothing is silently removed. Clearing c/d from A=[b,c,d] retains A=[b] and its favorite; only empty stations cascade-delete. Busy/missing media components are not invalid addresses. Confirmation is bound to the reviewed snapshot/current candidate identity; refresh or deletion cancels validation. Closing/navigating away cancels active scans.
+
+## v0.4.0 globe and nebula browsing
+
+User requested RoamDial-inspired interactions and the same browser rendering technology, then authorized version bump, commit, push and release tag. The reference bundle identifies Three.js r186 using WebGL 2; the application uses Three.js 0.186.1 and OrbitControls.
+
+- List, globe and genre-nebula views share the current page of station results, searches, filters and favorites; persist the chosen view separately from the receiver skin.
+- Render the globe and nebula in WebGL 2. Orbit by dragging, zoom by wheel/pinch or buttons, reset the camera, and support arrow/plus/minus keyboard control.
+- Click a station marker to use the existing playback route and permissions. A keyboard-accessible station selector also provides listen, single-use server relay and favorite actions.
+- Expose upstream optional latitude/longitude. Valid coordinates take precedence; country centroids are explicitly approximate. Preserve legacy saved station JSON without coordinates. Unknown locations remain playable through the selector, nebula or list.
+- Group nebula markers by station genre, including imported Chinese category paths. Visual particles are decorative; only station markers are playable.
+- Keep the existing audio element during view/source/search changes. Load Three.js only on demand; dispose all GPU resources on view replacement, stop drawing offscreen/hidden, and disable camera damping for reduced motion.
+- Ship browser-local map data and third-party notices, translated controls, 375px responsive layout, WebGL failure/context-loss recovery and a usable list fallback.
+
+Verification: frontend spatial/lifecycle/navigation tests, existing frontend and Rust suites, production build, formatting/Clippy, dependency audits and supported/unsupported WebGL browser checks.

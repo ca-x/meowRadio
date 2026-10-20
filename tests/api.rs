@@ -10,7 +10,7 @@ use tower::ServiceExt;
 
 const STATION: &str = "12345678-1234-1234-1234-123456789abc";
 fn fixture() -> Value {
-    json!({"stationuuid":STATION,"changeuuid":STATION,"name":"Test Jazz","url":"http://127.0.0.1:8000/private","url_resolved":"http://127.0.0.1:8000/private","homepage":"","favicon":"","tags":"jazz","country":"Test","countrycode":"US","state":"","language":"English","votes":10,"codec":"MP3","bitrate":128,"hls":0,"lastcheckok":1,"clickcount":10,"clicktrend":1})
+    json!({"stationuuid":STATION,"changeuuid":STATION,"name":"Test Jazz","url":"http://127.0.0.1:8000/private","url_resolved":"http://127.0.0.1:8000/private","homepage":"","favicon":"","tags":"jazz","country":"Test","countrycode":"US","state":"","language":"English","votes":10,"codec":"MP3","bitrate":128,"hls":0,"lastcheckok":1,"clickcount":10,"clicktrend":1,"geo_lat":40.75,"geo_long":-73.97})
 }
 async fn application() -> (tempfile::TempDir, AppState, Router) {
     let mock = Router::new().fallback(axum::routing::post(|| async {
@@ -329,6 +329,8 @@ async fn catalog_uses_real_api_shape_and_relay_blocks_private_destinations() {
     let (code, stations, _) = request(&app, "GET", "/api/stations?q=jazz", Value::Null, None).await;
     assert_eq!(code, StatusCode::OK);
     assert_eq!(stations[0]["id"], STATION);
+    assert_eq!(stations[0]["geo_lat"], 40.75);
+    assert_eq!(stations[0]["geo_long"], -73.97);
     assert_eq!(
         request(
             &app,

@@ -15,6 +15,8 @@ export type Station = {
   codec: string;
   bitrate: number;
   hls: boolean;
+  geo_lat?: number | null;
+  geo_long?: number | null;
   personal?: boolean;
   source_id?: string;
   source_name?: string;

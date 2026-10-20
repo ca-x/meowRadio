@@ -387,6 +387,8 @@ fn station(row: &StoredStation) -> Result<Station> {
         codec: "MP3".into(),
         bitrate: 128,
         hls: false,
+        geo_lat: None,
+        geo_long: None,
         personal: true,
         source_id: Some(row.source_id.clone()),
         source_name: Some(row.source_name.clone()),

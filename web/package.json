@@ -1,6 +1,6 @@
 {
   "name": "meowradio-web",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -18,18 +18,26 @@
     "@radix-ui/react-tabs": "^1.1.21",
     "@radix-ui/react-tooltip": "^1.2.16",
     "@tanstack/react-query": "^5.90.0",
+    "d3-geo": "^3.1.1",
     "hls.js": "^1.6.15",
+    "i18n-iso-countries": "^7.14.0",
     "i18next": "^26.4.2",
     "lucide-react": "^0.577.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-i18next": "^17.0.14",
-    "react-router-dom": "^7.18.3"
+    "react-router-dom": "^7.18.3",
+    "three": "^0.186.1",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.3",
+    "@types/d3-geo": "^3.1.1",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@types/three": "^0.186.0",
+    "@types/topojson-client": "^3.1.5",
     "@vitejs/plugin-react": "^5.0.0",
     "jsdom": "^30.0.1",
     "prettier": "^3.9.6",
