@@ -337,14 +337,34 @@ it("keeps lists paged while both 3D views display every matching station and fil
   await screen.findByRole("region", { name: "地球电台视图" });
   expect(screen.queryByRole("button", { name: "下一页" })).toBeNull();
   expect(screen.queryByRole("combobox", { name: "每页数量" })).toBeNull();
-  expect(
-    screen
-      .getByRole("combobox", { name: "选择电台" })
-      .querySelectorAll("option"),
-  ).toHaveLength(180);
+  await waitFor(() =>
+    expect(
+      screen
+        .getByRole("combobox", { name: "选择电台" })
+        .querySelectorAll("option"),
+    ).toHaveLength(180),
+  );
   fireEvent.click(screen.getByRole("button", { name: "星云" }));
   await screen.findByRole("region", { name: "星云电台视图" });
   fireEvent.click(screen.getByRole("button", { name: "爵士 90 点" }));
+  await waitFor(() =>
+    expect(
+      screen
+        .getByRole("combobox", { name: "选择电台" })
+        .querySelectorAll("option"),
+    ).toHaveLength(90),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "地球" }));
+  await screen.findByRole("region", { name: "地球电台视图" });
+  await waitFor(() =>
+    expect(
+      screen
+        .getByRole("combobox", { name: "选择电台" })
+        .querySelectorAll("option"),
+    ).toHaveLength(180),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "星云" }));
+  await screen.findByRole("region", { name: "星云电台视图" });
   await waitFor(() =>
     expect(
       screen

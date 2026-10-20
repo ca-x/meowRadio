@@ -94,3 +94,7 @@ User corrected the original page-bound 3D design: list views must remain paged, 
 - Country options, selector nodes and genre buttons follow settled visibility. Genre badges explicitly count points, including aggregates; overlapping upstream tag totals are not added as unique station totals.
 - Clusters offer Explore only and cannot enter the audio player, relay or favorites. Actual station selection preserves existing audio/permissions. Scope/owner changes cannot reuse private query placeholders.
 - View queries validate bounded visible scopes and detail levels; cached exploration snapshots have a 100,000-node/128-key budget without truncating responses. Unknown counts remain unknown; small territories use bundled 50m country centroids.
+
+## v0.4.2 final viewport candidate
+
+Keep nebula local genre selection out of globe rendering and reject cross-view query placeholders. Preserve the nebula choice when temporarily using the globe; only real nebula results may invalidate a missing genre. The switch regression verifies 180 globe nodes after 90 jazz nodes, then 90 jazz nodes on return. v0.4.1 tag is retained; its release workflow was cancelled before final delivery.

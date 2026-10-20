@@ -485,6 +485,7 @@ export default function App({ active = true }: { active?: boolean }) {
             ? "personal-stations"
             : "stations") &&
       previousQuery?.queryKey[2] === worldScope &&
+      previousQuery?.queryKey[13] === view &&
       previousQuery?.queryKey[3] === (tab === "discover" ? null : me.data?.id)
         ? previous
         : undefined,
@@ -515,9 +516,21 @@ export default function App({ active = true }: { active?: boolean }) {
     [allWorldStations],
   );
   useEffect(() => {
-    if (worldGenre !== null && worldGenreCounts[worldGenre] === 0)
+    if (
+      view === "nebula" &&
+      worldStations.isSuccess &&
+      !worldStations.isPlaceholderData &&
+      worldGenre !== null &&
+      worldGenreCounts[worldGenre] === 0
+    )
       setWorldGenre(null);
-  }, [worldGenre, worldGenreCounts]);
+  }, [
+    view,
+    worldStations.isSuccess,
+    worldStations.isPlaceholderData,
+    worldGenre,
+    worldGenreCounts,
+  ]);
   const filteredWorldStations = useMemo(
     () =>
       view === "nebula" && worldGenre !== null
@@ -1353,7 +1366,7 @@ export default function App({ active = true }: { active?: boolean }) {
                 saving={save.isPending}
                 onList={() => setView("list")}
                 genreCounts={worldGenreCounts}
-                genreFilter={worldGenre}
+                genreFilter={view === "nebula" ? worldGenre : null}
                 onGenreFilter={setWorldGenre}
                 onVisibility={onWorldVisibility}
                 cameraScope={worldStations.data?.cameraScope}
